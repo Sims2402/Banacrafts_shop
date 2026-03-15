@@ -19,6 +19,7 @@ interface CartContextType {
   addToWishlist: (product: Product) => void;
   removeFromWishlist: (productId: string) => void;
   isInWishlist: (productId: string) => boolean;
+  clearCartAndWishlist: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -26,7 +27,13 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<Product[]>([]);
+ const clearCartAndWishlist = () => {
+  setItems([]);
+  setWishlist([]);
 
+  localStorage.removeItem("banacrafts_cart");
+  localStorage.removeItem("banacrafts_wishlist");
+};
   useEffect(() => {
     const storedCart = localStorage.getItem("banacrafts_cart");
     const storedWishlist = localStorage.getItem("banacrafts_wishlist");
@@ -107,6 +114,7 @@ setItems((prevItems) =>
     return wishlist.some((p) => getProductId(p) === productId);
   };
 
+
   return (
     <CartContext.Provider
       value={{
@@ -121,6 +129,7 @@ setItems((prevItems) =>
         addToWishlist,
         removeFromWishlist,
         isInWishlist,
+        clearCartAndWishlist
       }}
     >
       {children}

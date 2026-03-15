@@ -128,9 +128,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem("banacrafts_user");
-  };
+  setUser(null);
+  localStorage.removeItem("banacrafts_user");
+  localStorage.removeItem("banacrafts_cart");
+  localStorage.removeItem("banacrafts_wishlist");
+};
 
   return (
     <AuthContext.Provider

@@ -15,6 +15,7 @@ const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 const [search, setSearch] = useState("");
 const navigate = useNavigate();
+const { clearCartAndWishlist } = useCart();
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Products", path: "/products" },
@@ -35,7 +36,10 @@ const navigate = useNavigate();
         return "/login";
     }
   };
-
+const handleLogout = () => {
+  clearCartAndWishlist(); // clear cart + wishlist
+  logout(); // logout user
+};
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="container flex h-16 items-center justify-between md:h-20">
@@ -121,7 +125,7 @@ const navigate = useNavigate();
                   {user?.name}
                 </Button>
               </Link>
-              <Button variant="outline" size="sm" onClick={logout}>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
                 Logout
               </Button>
             </div>
@@ -175,7 +179,7 @@ const navigate = useNavigate();
                   </Link>
                   <button
                     onClick={() => {
-                      logout();
+                      handleLogout();
                       setMobileMenuOpen(false);
                     }}
                     className="py-2 text-sm font-medium text-muted-foreground"
