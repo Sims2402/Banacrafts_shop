@@ -5,27 +5,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { mockOrders } from "@/data/orders";
+import { api } from "@/api/api";
 
 const TrackOrder = () => {
   const [orderId, setOrderId] = useState("");
-  const [trackedOrder, setTrackedOrder] = useState<typeof mockOrders[0] | null>(null);
+  const [trackedOrder, setTrackedOrder] = useState<any>(null);
   const [error, setError] = useState("");
 
-  const handleTrack = () => {
-    if (!orderId.trim()) {
-      setError("Please enter an order ID");
-      return;
-    }
-    const found = mockOrders.find(o => o.id.toLowerCase() === orderId.toLowerCase());
-    if (found) {
-      setTrackedOrder(found);
-      setError("");
-    } else {
-      setTrackedOrder(null);
-      setError("Order not found. Please check the order ID and try again.");
-    }
-  };
+  const handleTrack = async () => {
+  if (!orderId.trim()) {
+    setError("Please enter an order ID");
+    return;
+  }
+
+  try {
+    const order = await api.get(`/orders/track/${orderId}`);
+    setTrackedOrder(order);
+    setError("");
+  } catch (err) {
+    setTrackedOrder(null);
+    setError("Order not found. Please check the order ID and try again.");
+  }
+};
 
   const getStatusSteps = () => {
     const steps = [
@@ -36,7 +37,9 @@ const TrackOrder = () => {
     ];
     
     const statusOrder = ["pending", "confirmed", "dispatched", "delivered"];
-    const currentIndex = statusOrder.indexOf(trackedOrder?.status || "pending");
+   const currentIndex = statusOrder.indexOf(
+  trackedOrder?.orderStatus?.toLowerCase() || "pending"
+);
     
     return steps.map((step, idx) => ({
       ...step,
@@ -88,9 +91,9 @@ const TrackOrder = () => {
                     </p>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${
-                    trackedOrder.status === "delivered" ? "bg-green-100 text-green-700" :
-                    trackedOrder.status === "dispatched" ? "bg-blue-100 text-blue-700" :
-                    trackedOrder.status === "confirmed" ? "bg-purple-100 text-purple-700" :
+                    trackedOrder.orderStatus.toLowerCase() === "delivered" ? "bg-green-100 text-green-700" :
+                    trackedOrder.orderStatus.toLowerCase() === "dispatched" ? "bg-blue-100 text-blue-700" :
+                    trackedOrder.orderStatus.toLowerCase() === "confirmed" ? "bg-purple-100 text-purple-700" :
                     "bg-yellow-100 text-yellow-700"
                   }`}>
                     {trackedOrder.status}
@@ -128,11 +131,11 @@ const TrackOrder = () => {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Items</span>
-                    <span>{trackedOrder.products.length} item(s)</span>
+                    <span>{trackedOrder.orderItems.length} item(s)</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Total Amount</span>
-                    <span className="font-semibold">₹{trackedOrder.totalAmount.toLocaleString()}</span>
+                    <span className="font-semibold">₹{trackedOrder.totalPrice.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Payment</span>
@@ -144,7 +147,7 @@ const TrackOrder = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Delivery</span>
-                    <span>{trackedOrder.shippingAddress}</span>
+                    <span>{trackedOrder.deliveryAddress}</span>
                   </div>
                 </div>
               </div>

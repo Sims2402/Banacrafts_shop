@@ -11,7 +11,7 @@ import { requestCancelOrder } from "../controllers/order.controller.js";
 import { handleCancelAction } from "../controllers/order.controller.js";
 import { requestReturnOrExchange } from "../controllers/order.controller.js";
 import { handleReturnAction } from "../controllers/order.controller.js";
-
+import { trackOrder } from "../controllers/order.controller.js";
 
 const router = express.Router();
 
@@ -80,4 +80,6 @@ router.post(
   createOrder
 );
 
+/*track order*/
+router.get("/track/:orderId", trackOrder);
 export default router;

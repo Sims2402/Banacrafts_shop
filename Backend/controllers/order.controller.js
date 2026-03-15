@@ -294,3 +294,24 @@ export const handleReturnAction = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const trackOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const orders = await Order.find();
+
+    const order = orders.find((o) =>
+      o._id.toString().slice(-6) === orderId
+    );
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.json(order);
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
