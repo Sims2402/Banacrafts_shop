@@ -457,6 +457,7 @@ const fetchOrders = async () => {
         ) : (
           <div className="space-y-4">
             {filteredOrders.map((order) => (
+              
               <Card key={order.id} className="heritage-card">
                 <CardContent className="pt-6">
                   <div className="flex flex-col lg:flex-row gap-6">
@@ -464,9 +465,16 @@ const fetchOrders = async () => {
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-4">
                         <div>
-                          <h3 className="font-display font-semibold text-lg">
-                            Order #{order.id}
-                          </h3>
+                          
+<h3 className="font-heading font-semibold">
+  {order.products
+    ?.map((product: any) => product.productName)
+    .join(", ") || "Product"}
+</h3>
+
+<p className="text-sm text-muted-foreground">
+  Order #{order.id?.slice(-6)}
+</p>
                           <p className="text-sm text-muted-foreground">
                             Placed on {new Date(order.createdAt).toLocaleDateString("en-IN", {
                               day: "numeric",
@@ -652,8 +660,8 @@ const fetchOrders = async () => {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display">
-                Order #{selectedOrder?.id}
-              </DialogTitle>
+  {selectedOrder?.products?.map((p: any) => p.productName).join(", ")}
+</DialogTitle>
             </DialogHeader>
 
             {selectedOrder && (
