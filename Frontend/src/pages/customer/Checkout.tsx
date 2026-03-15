@@ -382,10 +382,10 @@ navigate(`/order/success/${_id}`);
                       <div key={info.productId} className="flex gap-3">
                         <div className="relative">
                           <img
-                            src={item.product.image}
-                            alt={item.product.name}
-                            className="w-16 h-16 rounded-lg object-cover"
-                          />
+  src={item.product?.images?.[0]?.url || "/placeholder.png"}
+  alt={item.product?.name}
+  className="w-16 h-16 rounded-lg object-cover"
+/>
                           {item.product.isReturnable ? (
                             <Badge 
                               variant="secondary" 
