@@ -122,13 +122,20 @@ const fetchOrders = async () => {
       })),
 
       customerRequest: order.cancelRequested
-    ? {
-        type: "cancel",
-        status: order.cancelStatus === "Requested" ? "pending" : "approved",
-        reason: "Customer requested cancellation",
-        requestedAt: order.updatedAt,
-      }
-    : null,
+  ? {
+      type: "cancel",
+      status: "pending",
+      reason: "Customer requested cancellation",
+      requestedAt: order.updatedAt,
+    }
+  : order.returnRequested
+  ? {
+      type: order.returnType?.toLowerCase(),
+      status: "pending",
+      reason: `Customer requested ${order.returnType}`,
+      requestedAt: order.updatedAt,
+    }
+  : null,
     }));
 
     setOrders(normalizedOrders);
@@ -248,35 +255,59 @@ const fetchOrders = async () => {
   }
 };
 
-  const handleExchangeRequest = (isReturn: boolean = false) => {
-    if (!actionDialog.order) return;
-    
-    const isPreDispatch = actionDialog.order.status === "pending" || actionDialog.order.status === "confirmed";
-    
-    setOrders(prev => prev.map(order => 
-      order.id === actionDialog.order!.id 
-        ? { 
-            ...order, 
-            customerRequest: {
-              type: isReturn ? "return" as const : "exchange" as const,
-              status: "pending" as const,
-              reason: requestReason || `Customer requested ${isReturn ? "return" : "exchange"}`,
-              requestedAt: new Date().toISOString()
-            },
-            updatedAt: new Date().toISOString() 
-          }
-        : order
-    ));
-    
+ const handleExchangeRequest = async (isReturn: boolean = false) => {
+  if (!actionDialog.order) return;
+
+  const isPreDispatch =
+    actionDialog.order.status === "pending" ||
+    actionDialog.order.status === "confirmed";
+
+  try {
+    const type = isReturn ? "Return" : "Exchange";
+
+    // Call backend API
+    await api.put(`/orders/${actionDialog.order.id}/return`, {
+      type,
+    });
+
+    // Update UI state
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.id === actionDialog.order!.id
+          ? {
+              ...order,
+              customerRequest: {
+                type: isReturn ? "return" : "exchange",
+                status: "pending",
+                reason:
+                  requestReason ||
+                  `Customer requested ${isReturn ? "return" : "exchange"}`,
+                requestedAt: new Date().toISOString(),
+              },
+              updatedAt: new Date().toISOString(),
+            }
+          : order
+      )
+    );
+
     toast({
       title: isReturn ? "Return Requested" : "Exchange Requested",
-      description: isPreDispatch 
+      description: isPreDispatch
         ? `Your ${isReturn ? "return" : "exchange"} request for Order #${actionDialog.order.id} has been submitted. The seller will review it shortly.`
         : `Your ${isReturn ? "return" : "exchange"} request for Order #${actionDialog.order.id} has been submitted. You'll be notified once the seller responds.`,
     });
+
     setActionDialog({ type: null, order: null });
     setRequestReason("");
-  };
+
+  } catch (error: any) {
+    toast({
+      title: "Error",
+      description: error.message || "Request failed",
+      variant: "destructive",
+    });
+  }
+};
 
   const getReturnableProductsList = (order: Order) => {
     return order.products.filter(p => p.isReturnable);
