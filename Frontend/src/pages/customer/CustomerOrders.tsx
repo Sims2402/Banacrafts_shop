@@ -121,7 +121,14 @@ const fetchOrders = async () => {
         isReturnable: true,
       })),
 
-      customerRequest: order.customerRequest || null,
+      customerRequest: order.cancelRequested
+    ? {
+        type: "cancel",
+        status: order.cancelStatus === "Requested" ? "pending" : "approved",
+        reason: "Customer requested cancellation",
+        requestedAt: order.updatedAt,
+      }
+    : null,
     }));
 
     setOrders(normalizedOrders);
@@ -201,31 +208,45 @@ const fetchOrders = async () => {
     return order.status === "delivered" && hasReturnableProducts(order) && !order.customerRequest;
   };
 
-  const handleCancelOrder = () => {
-    if (!actionDialog.order) return;
-    
-    setOrders(prev => prev.map(order => 
-      order.id === actionDialog.order!.id 
-        ? { 
-            ...order, 
-            customerRequest: {
-              type: "cancel" as const,
-              status: "pending" as const,
-              reason: requestReason || "Customer requested cancellation",
-              requestedAt: new Date().toISOString()
-            },
-            updatedAt: new Date().toISOString() 
-          }
-        : order
-    ));
-    
+ const handleCancelOrder = async () => {
+  if (!actionDialog.order) return;
+
+  try {
+    const updated = await api.put(`/orders/${actionDialog.order.id}/cancel`, {});
+
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.id === actionDialog.order!.id
+          ? {
+              ...order,
+              customerRequest: {
+                type: "cancel",
+                status: "pending",
+                reason: requestReason || "Customer requested cancellation",
+                requestedAt: new Date().toISOString(),
+              },
+              updatedAt: new Date().toISOString(),
+            }
+          : order
+      )
+    );
+
     toast({
       title: "Cancellation Requested",
-      description: `Your cancellation request for Order #${actionDialog.order.id} has been submitted. The seller will review it shortly.`,
+      description: `Order #${actionDialog.order.id.slice(-6)} cancellation request sent.`,
     });
+
     setActionDialog({ type: null, order: null });
     setRequestReason("");
-  };
+
+  } catch (error: any) {
+    toast({
+      title: "Error",
+      description: error.message || "Failed to cancel order",
+      variant: "destructive",
+    });
+  }
+};
 
   const handleExchangeRequest = (isReturn: boolean = false) => {
     if (!actionDialog.order) return;
