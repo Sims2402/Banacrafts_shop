@@ -51,7 +51,7 @@ At Banasthali Vidyapith, we've created a sustainable ecosystem where women artis
 
 **The Ripple Effect**
 When a woman earns, her entire family benefits. Children get better education, healthcare improves, and communities grow stronger. Each purchase you make contributes to this positive change.`,
-    image: "https://images.unsplash.com/photo-1594736797933-d0401ba2fe65?w=800",
+    image: "https://www.theindiacraftproject.com/cdn/shop/articles/Sudhila_Devi_Madhubani.jpg?v=1729332183",
     category: "Women Empowerment",
     readTime: 4,
     publishedAt: "2024-02-20",
