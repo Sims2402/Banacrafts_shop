@@ -54,7 +54,7 @@ export const createOrder = async (req, res) => {
       phone,
       paymentMethod,
       totalPrice,
-      paymentStatus: paymentMethod === "Cash" ? "Pending" : "Paid"
+      paymentStatus:"Pending"
     });
 
     res.status(201).json(order);

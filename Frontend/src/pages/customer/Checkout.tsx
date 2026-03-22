@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { mockDiscounts, getActiveDiscounts, Discount } from "@/data/discounts";
+
 import {
   MapPin,
   Truck,
@@ -167,7 +168,7 @@ const Checkout = () => {
     return null;
   }
 
-  const handlePlaceOrder = async () => {
+const handlePlaceOrder = async () => {
   try {
     setIsProcessing(true);
 
@@ -176,28 +177,82 @@ const Checkout = () => {
       quantity: item.quantity,
     }));
 
-    const data = await api.post("/orders", {
-      orderItems,
-      deliveryMethod,
-      deliveryAddress: deliveryMethod === "seller_delivery" ? address : "Self Pickup",
-      phone,
-      paymentMethod: paymentMethod === "upi" ? "Online" : "Cash",
+    // 🟡 CASH FLOW (unchanged)
+    if (paymentMethod === "cash") {
+      const data:any = await api.post("/orders", {
+        orderItems,
+        deliveryMethod,
+        deliveryAddress:
+          deliveryMethod === "seller_delivery" ? address : "Self Pickup",
+        phone,
+        paymentMethod: "Cash",
+      });
+
+      clearCart();
+      navigate(`/order/success/${data._id}`);
+      return;
+    }
+
+    // 🔴 ONLINE PAYMENT FLOW (Razorpay)
+
+    // 1. Create Razorpay order
+    const paymentData:any = await api.post("/payments/razorpay", {
+      amount: finalTotal,
     });
 
-    clearCart();
+    const options = {
+      key: paymentData.key,
+      amount: paymentData.amount,
+      currency: paymentData.currency,
+      order_id: paymentData.orderId,
 
-    const {
-  _id,
-  totalPrice,
-  deliveryMethod: backendDeliveryMethod,
-  paymentMethod: backendPaymentMethod,
-} = data as any;
+      name: "BanaCrafts",
+      description: "Order Payment",
 
-navigate(`/order/success/${_id}`);
+      handler: async function (response: any) {
+        try {
+          // 2. Create order AFTER payment success
+          const createdOrder:any = await api.post("/orders", {
+            orderItems,
+            deliveryMethod,
+            deliveryAddress:
+              deliveryMethod === "seller_delivery"
+                ? address
+                : "Self Pickup",
+            phone,
+            paymentMethod: "Online",
+          });
 
+          // 3. Verify payment
+          await api.post("/payments/razorpay/verify", {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            orderId: createdOrder._id,
+          });
+
+          clearCart();
+          const orderId = createdOrder._id || createdOrder.data?._id;
+navigate(`/order/success/${orderId}`);
+        } catch (err: any) {
+          alert("Payment succeeded but order failed!");
+        }
+      },
+
+      prefill: {
+        name: user?.name || "Customer",
+      },
+
+      theme: {
+        color: "#7c3aed",
+      },
+    };
+
+    const rzp = new (window as any).Razorpay(options);
+    rzp.open();
 
   } catch (error: any) {
-    alert(error.message || "Failed to place order");
+    alert(error.message || "Payment failed");
   } finally {
     setIsProcessing(false);
   }
