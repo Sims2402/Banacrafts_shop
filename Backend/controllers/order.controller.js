@@ -1,5 +1,6 @@
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
+import sendEmail from "../utils/sendEmail.js";
 
 /* @desc   Create new order
    @route  POST /api/orders
@@ -56,12 +57,42 @@ export const createOrder = async (req, res) => {
       totalPrice,
       paymentStatus:"Pending"
     });
-
+const userEmail = req.user.email;
+console.log("Sending email to:", req.user.email);
+await sendEmail(
+  userEmail,
+  "Order Placed Successfully 🛍️",
+  `
+    <h2>Thank you for your order!</h2>
+    <p>Your order has been placed successfully.</p>
+    <p><strong>Order ID:</strong> ${order._id}</p>
+    <h3>Order Summary</h3>
+<table border="1" cellpadding="5" cellspacing="0">
+  <tr>
+    <th>Product</th>
+    <th>Qty</th>
+  </tr>
+  ${order.orderItems
+    .map(
+      (item) => `
+      <tr>
+        <td>${item.name}</td>
+        <td>${item.quantity}</td>
+      </tr>
+    `
+    )
+    .join("")}
+</table>
+    <p><strong>Total:</strong> ₹${order.totalPrice}</p>
+    <p>We will notify you once it is shipped.</p>
+  `
+);
     res.status(201).json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 
 /* @desc   Get logged-in user's orders
