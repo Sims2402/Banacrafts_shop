@@ -8,7 +8,11 @@ import generateToken from "../utils/generateToken.js";
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password, role, phone, address } = req.body;
-
+    if (!/^(?=.*[A-Za-z])[A-Za-z0-9\s]+$/.test(name)) {
+  return res.status(400).json({
+    message: "Name must contain at least one letter",
+  });
+}
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Please fill all required fields" });
     }

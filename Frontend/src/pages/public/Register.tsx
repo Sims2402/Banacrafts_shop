@@ -21,6 +21,7 @@ const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
 const handleSubmit = async (e: React.FormEvent) => {
+  
   e.preventDefault();
   setError("");
 
@@ -28,6 +29,12 @@ const handleSubmit = async (e: React.FormEvent) => {
     setError("Passwords do not match");
     return;
   }
+  const nameRegex = /^(?=.*[A-Za-z])[A-Za-z0-9\s]+$/;
+
+if (!nameRegex.test(name)) {
+  setError("Name must contain only letters and spaces");
+  return;
+}
 
   setLoading(true);
 
