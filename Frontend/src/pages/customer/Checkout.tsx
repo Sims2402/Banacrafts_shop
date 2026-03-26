@@ -429,8 +429,8 @@ navigate(`/order/success/${orderId}`);
               <CardContent className="space-y-4">
                 {/* Items with discount info */}
                 <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {productDiscountInfo.map((info) => {
-                    const item = items.find((i) => i.product.id === info.productId);
+                  {productDiscountInfo.map((info,index) => {
+                    const item = items[index];
                     if (!item) return null;
 
                     return (
