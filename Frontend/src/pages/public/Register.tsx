@@ -15,7 +15,6 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [role, setRole] = useState<UserRole>("customer");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -33,7 +32,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   setLoading(true);
 
   try {
-    const success = await register(name, email, password, role);
+    const success = await register(name, email, password);
 
     if (!success) {
       setError("Registration failed. Please try again.");
@@ -41,19 +40,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       return;
     }
 
-    switch (role) {
-      case "admin":
-        navigate("/admin/dashboard");
-        break;
-      case "seller":
-        navigate("/seller/dashboard");
-        break;
-      case "customer":
-        navigate("/");
-        break;
-      default:
-        navigate("/");
-    }
+    navigate("/");
   } catch (err) {
     setError("Registration failed. Please try again.");
   } finally {
@@ -177,32 +164,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             </div>
 
             <div>
-              <Label className="mb-3 block">Register As</Label>
-              <RadioGroup
-                value={role || "customer"}
-                onValueChange={(value) => setRole(value as UserRole)}
-                className="grid grid-cols-2 gap-4"
-              >
-                {[
-                  { value: "customer", label: "Customer", desc: "Shop handcrafted items" },
-                  { value: "seller", label: "Seller", desc: "Sell your crafts" },
-                ].map((option) => (
-                  <div key={option.value}>
-                    <RadioGroupItem
-                      value={option.value}
-                      id={`reg-${option.value}`}
-                      className="peer sr-only"
-                    />
-                    <Label
-                      htmlFor={`reg-${option.value}`}
-                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors"
-                    >
-                      <span className="text-sm font-semibold">{option.label}</span>
-                      <span className="text-xs text-muted-foreground mt-1">{option.desc}</span>
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
+              
             </div>
 
             <Button type="submit" variant="heritage" size="lg" className="w-full" disabled={loading}>

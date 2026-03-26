@@ -12,7 +12,6 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState<UserRole>("customer");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +33,7 @@ const redirectPath =
     setLoading(true);
 
     try {
-      const success = await login(email, password, role);
+      const success = await login(email, password);
 
     if (!success) {
       setError("Invalid email or password");
@@ -43,19 +42,7 @@ const redirectPath =
     }
 
     // Redirect based on role
-   switch (role) {
-  case "admin":
-    navigate("/admin/dashboard", { replace: true });
-    break;
-  case "seller":
-    navigate("/seller/dashboard", { replace: true });
-    break;
-  case "customer":
-    navigate("/", { replace: true });
-    break;
-  default:
-    navigate("/", { replace: true });
-}
+  navigate("/", { replace: true });
 
 
     } catch (err) {
@@ -142,32 +129,7 @@ const redirectPath =
             </div>
 
             <div>
-              <Label className="mb-3 block">Login As</Label>
-              <RadioGroup
-                value={role || "customer"}
-                onValueChange={(value) => setRole(value as UserRole)}
-                className="grid grid-cols-3 gap-4"
-              >
-                {[
-                  { value: "customer", label: "Customer" },
-                  { value: "seller", label: "Seller" },
-                  { value: "admin", label: "Admin" },
-                ].map((option) => (
-                  <div key={option.value}>
-                    <RadioGroupItem
-                      value={option.value}
-                      id={option.value}
-                      className="peer sr-only"
-                    />
-                    <Label
-                      htmlFor={option.value}
-                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors"
-                    >
-                      <span className="text-sm font-medium">{option.label}</span>
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
+              
             </div>
 
             <Button type="submit" variant="heritage" size="lg" className="w-full" disabled={loading}>

@@ -20,17 +20,8 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (
-    email: string,
-    password: string,
-    role: UserRole
-  ) => Promise<boolean>;
-  register: (
-    name: string,
-    email: string,
-    password: string,
-    role: UserRole
-  ) => Promise<boolean>;
+ login: (email: string, password: string) => Promise<boolean>;
+register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -53,7 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (
     email: string,
     password: string,
-    role: UserRole
+    
   ): Promise<boolean> => {
     try {
       const res = await fetch("http://localhost:5000/api/auth/login", {
@@ -90,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     name: string,
     email: string,
     password: string,
-    role: UserRole
+   
   ): Promise<boolean> => {
     try {
       const res = await fetch("http://localhost:5000/api/auth/register", {
@@ -98,7 +89,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, email, password, role }),
+       body: JSON.stringify({ 
+  name, 
+  email, 
+  password, 
+  role: "customer" 
+}),
       });
 
       if (!res.ok) {
