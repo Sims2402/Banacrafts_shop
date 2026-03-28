@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Eye, EyeOff, KeyRound, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,65 +14,82 @@ const ResetPassword = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const location = useLocation();
+
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const email = location.state?.email;
-  const verified = location.state?.verified;
+const {token} = useParams()
 
-  useEffect(() => {
-    // Redirect if not verified
-    if (!email || !verified) {
-      navigate("/forgot-password");
+
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (!password || !confirmPassword) {
+    toast({
+      title: "Error",
+      description: "Please fill in all fields",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  if (password.length < 6) {
+    toast({
+      title: "Error",
+      description: "Password must be at least 6 characters",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    toast({
+      title: "Error",
+      description: "Passwords do not match",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const res = await fetch(
+      `http://localhost:5000/api/auth/reset-password/${token}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password }),
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Something went wrong");
     }
-  }, [email, verified, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!password || !confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (password.length < 6) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 6 characters",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Passwords do not match",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    
-    // Simulate password reset
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
     setIsSuccess(true);
+
     toast({
       title: "Password Reset!",
       description: "Your password has been successfully reset.",
     });
-    
-    setIsLoading(false);
-  };
 
-  if (!email || !verified) return null;
+  } catch (error: any) {
+    toast({
+      title: "Error",
+      description: error.message,
+      variant: "destructive",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 
   if (isSuccess) {
     return (
@@ -111,7 +128,7 @@ const ResetPassword = () => {
           <CardTitle className="text-2xl font-bold text-primary">Reset Password</CardTitle>
           <CardDescription>
             Create a new password for<br />
-            <span className="font-medium text-foreground">{email}</span>
+           
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
