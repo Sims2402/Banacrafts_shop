@@ -19,40 +19,64 @@ const ForgotPassword = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email) {
-      toast({
-        title: "Error",
-        description: "Please enter your email address",
-        variant: "destructive",
-      });
-      return;
-    }
+  e.preventDefault();
 
-    if (!validateEmail(email)) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid email address",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    
-    // Simulate sending OTP
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
+  if (!email) {
     toast({
-      title: "OTP Sent!",
-      description: "Check your email for the verification code.",
+      title: "Error",
+      description: "Please enter your email address",
+      variant: "destructive",
     });
-    
-    // Navigate to OTP verification with email in state
-    navigate("/verify-otp", { state: { email } });
+    return;
+  }
+
+  if (!validateEmail(email)) {
+    toast({
+      title: "Error",
+      description: "Please enter a valid email address",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const res = await fetch(
+      "http://localhost:5000/api/auth/forgot-password",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Something went wrong");
+    }
+
+    toast({
+      title: "Email Sent ✅",
+      description: "Check your email for password reset link",
+    });
+
+    // ✅ Redirect to login (no OTP page needed)
+    navigate("/login");
+
+  } catch (error: any) {
+    toast({
+      title: "Error",
+      description: error.message,
+      variant: "destructive",
+    });
+  } finally {
     setIsLoading(false);
-  };
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
@@ -63,7 +87,7 @@ const ForgotPassword = () => {
           </div>
           <CardTitle className="text-2xl font-bold text-primary">Forgot Password?</CardTitle>
           <CardDescription>
-            Enter your email address and we'll send you a verification code to reset your password.
+            Enter your email address and we'll send you a password reset link to reset your password.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>

@@ -19,7 +19,6 @@ import AwarenessArticle from "./pages/public/AwarenessArticle";
 import Login from "./pages/public/Login";
 import Register from "./pages/public/Register";
 import ForgotPassword from "./pages/public/ForgotPassword";
-import VerifyOTP from "./pages/public/VerifyOTP";
 import ResetPassword from "./pages/public/ResetPassword";
 
 // Customer Pages
@@ -75,8 +74,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/verify-otp" element={<VerifyOTP />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
 
               {/* Support Routes (Public) */}
               <Route path="/support/returns-refunds" element={<ReturnsRefunds />} />
