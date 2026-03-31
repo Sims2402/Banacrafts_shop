@@ -1,334 +1,219 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import AdminNav from "@/components/layout/AdminNav"; // Direct Navigation integrated
 import OrderStatusBadge from "@/components/common/OrderStatusBadge";
 import PaymentStatusBadge from "@/components/common/PaymentStatusBadge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Search, Eye, Download, IndianRupee } from "lucide-react";
-import { mockOrders, Order, getTotalRevenue } from "@/data/orders";
-import { Badge } from "@/components/ui/badge";
+import { Search, Eye, IndianRupee, ShoppingBag, CreditCard, Download } from "lucide-react";
+import { fetchWithAuth } from "@/lib/api";
+
+/* ================= TYPES ================= */
+
+interface OrderItem {
+  product: {
+    _id: string;
+    title: string;
+    images?: string[];
+  };
+  quantity: number;
+  price: number;
+}
+
+interface Order {
+  _id: string;
+  user: {
+    name: string;
+    email: string;
+  };
+  orderItems: OrderItem[];
+  deliveryMethod: string;
+  deliveryAddress?: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  orderStatus: string;
+  totalPrice: number;
+  createdAt: string;
+}
+
+/* ================= STATUS NORMALIZERS ================= */
+
+const normalizePaymentStatus = (status: string) =>
+  status.toLowerCase() as "pending" | "paid" | "failed" | "refunded";
+
+const normalizeOrderStatus = (status: string) =>
+  status.toLowerCase() as
+    | "pending"
+    | "confirmed"
+    | "dispatched"
+    | "delivered"
+    | "cancelled";
+
+/* ================= COMPONENT ================= */
 
 const AdminOrders = () => {
-  const [orders] = useState<Order[]>(mockOrders);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [paymentFilter, setPaymentFilter] = useState<string>("all");
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  const loadOrders = async () => {
+    try {
+      const data = await fetchWithAuth("/admin/orders");
+      setOrders(data.orders || []);
+    } catch (err) {
+      console.log("Orders fetch error:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  /* ================= FILTER LOGIC ================= */
 
   const filteredOrders = orders.filter((order) => {
-    const matchesStatus = statusFilter === "all" || order.status === statusFilter;
-    const matchesPayment = paymentFilter === "all" || order.paymentStatus === paymentFilter;
+    const matchesStatus = statusFilter === "all" || order.orderStatus === statusFilter;
     const matchesSearch =
-      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.sellerName.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesPayment && matchesSearch;
+      order._id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.user?.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
   });
 
-  const totalRevenue = getTotalRevenue(orders);
-  const pendingPayments = orders.filter((o) => o.paymentStatus === "pending");
-  const pendingPaymentTotal = pendingPayments.reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalRevenue = orders
+    .filter(o => o.paymentStatus.toLowerCase() === "paid")
+    .reduce((sum, o) => sum + o.totalPrice, 0);
+
+  const pendingOrders = orders.filter(o => o.orderStatus.toLowerCase() === "pending").length;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-[#FDF8F4]">
       <Navbar />
+      <AdminNav />
 
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <main className="flex-1 container mx-auto px-8 py-10">
+        
+        {/* HEADER */}
+        <div className="flex justify-between items-start mb-10">
           <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">
-              Orders Management
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              View and manage all platform orders
-            </p>
+            <h1 className="text-3xl font-serif font-bold text-[#3d1a11]">Orders Management</h1>
+            <p className="text-gray-500 mt-1 italic">Track and process customer purchases</p>
           </div>
-          <Button variant="outline" className="gap-2">
-            <Download className="h-4 w-4" />
-            Export Report
-          </Button>
+          <button className="bg-white hover:bg-[#FAF3F0] text-[#722F37] border border-[#722F37] rounded-[12px] h-[45px] px-6 transition-all font-medium flex items-center gap-2 shadow-sm">
+            <Download size={18} />
+            <span className="text-[15px]">Export Report</span>
+          </button>
         </div>
 
-        {/* Payment Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card className="heritage-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                  <IndianRupee className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Revenue (Paid)</p>
-                  <p className="text-xl font-bold font-display">
-                    ₹{totalRevenue.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="heritage-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
-                  <IndianRupee className="h-5 w-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Payments</p>
-                  <p className="text-xl font-bold font-display">
-                    ₹{pendingPaymentTotal.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="heritage-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <IndianRupee className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Orders</p>
-                  <p className="text-xl font-bold font-display">{orders.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* SUMMARY STATS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <StatCard 
+            title="Total Revenue" 
+            value={`₹${totalRevenue.toLocaleString()}`} 
+            icon={<IndianRupee className="text-green-600" size={24} />} 
+            bgColor="bg-green-100" 
+          />
+          <StatCard 
+            title="Pending Orders" 
+            value={pendingOrders} 
+            icon={<ShoppingBag className="text-orange-600" size={24} />} 
+            bgColor="bg-orange-100" 
+          />
+          <StatCard 
+            title="Total Orders" 
+            value={orders.length} 
+            icon={<CreditCard className="text-[#722F37]" size={24} />} 
+            bgColor="bg-[#FAF3F0]" 
+          />
         </div>
 
-        {/* Filters */}
-        <Card className="heritage-card mb-6">
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by order ID, customer, or seller..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Order status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="confirmed">Confirmed</SelectItem>
-                  <SelectItem value="dispatched">Dispatched</SelectItem>
-                  <SelectItem value="delivered">Delivered</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Payment status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Payments</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                  <SelectItem value="refunded">Refunded</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+        {/* SEARCH & FILTERS BAR */}
+        <div className="bg-[#FAF7F2] border border-[#E8DCCF] rounded-2xl p-3 flex gap-4 mb-8 shadow-sm">
+          <div className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input 
+              placeholder="Search by Order ID or Customer Name..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-transparent border-none py-2.5 pl-11 pr-4 focus:outline-none text-sm placeholder:text-gray-400"
+            />
+          </div>
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-white border border-[#E8DCCF] rounded-xl px-5 py-2 text-sm font-medium outline-none text-gray-500 shadow-sm min-w-[160px]"
+          >
+            <option value="all">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Dispatched">Dispatched</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
 
-        {/* Orders Table */}
-        <Card className="heritage-card">
-          <CardHeader>
-            <CardTitle className="text-lg font-display">
-              All Orders ({filteredOrders.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Seller</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Order Status</TableHead>
-                  <TableHead>Payment Status</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.id}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{order.customerName}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {order.customerEmail}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{order.sellerName}</TableCell>
-                    <TableCell className="font-medium">
-                      ₹{order.totalAmount.toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {order.paymentMethod}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <OrderStatusBadge status={order.status} />
-                    </TableCell>
-                    <TableCell>
-                      <PaymentStatusBadge status={order.paymentStatus} />
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setSelectedOrder(order)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Order Detail Dialog */}
-        <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="font-display">
-                Order Details - {selectedOrder?.id}
-              </DialogTitle>
-            </DialogHeader>
-            {selectedOrder && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="font-medium mb-2">Customer Info</h4>
-                    <p>{selectedOrder.customerName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedOrder.customerEmail}
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-2">Seller Info</h4>
-                    <p>{selectedOrder.sellerName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      ID: {selectedOrder.sellerId}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="font-medium mb-2">Delivery Details</h4>
-                    <Badge variant="outline" className="mb-2">
-                      {selectedOrder.deliveryMethod === "self_pickup"
-                        ? "Self Pickup"
-                        : "Seller Delivery"}
-                    </Badge>
-                    {selectedOrder.openBoxDelivery && (
-                      <Badge variant="outline" className="ml-2 bg-blue-50">
-                        Open Box Delivery
-                      </Badge>
-                    )}
-                    {selectedOrder.shippingAddress && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {selectedOrder.shippingAddress}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-2">Payment Info</h4>
-                    <Badge variant="outline" className="capitalize mb-2">
-                      {selectedOrder.paymentMethod}
-                    </Badge>
-                    <PaymentStatusBadge status={selectedOrder.paymentStatus} />
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-2">Products</h4>
-                  <div className="space-y-2">
-                    {selectedOrder.products.map((product) => (
-                      <div
-                        key={product.productId}
-                        className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg"
-                      >
-                        <img
-                          src={product.image}
-                          alt={product.productName}
-                          className="w-16 h-16 rounded object-cover"
-                        />
-                        <div className="flex-1">
-                          <p className="font-medium">{product.productName}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Qty: {product.quantity} × ₹{product.price}
-                          </p>
-                        </div>
-                        <p className="font-medium">
-                          ₹{(product.quantity * product.price).toLocaleString()}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center pt-4 border-t">
-                  <OrderStatusBadge status={selectedOrder.status} />
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Total Amount</p>
-                    <p className="text-2xl font-bold font-display">
-                      ₹{selectedOrder.totalAmount.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        {/* TABLE SECTION */}
+        <div className="bg-[#FAF7F2] rounded-2xl border border-[#E8DCCF] overflow-hidden shadow-sm">
+          <table className="w-full text-sm text-[#4A3728]">
+            <thead className="text-left bg-transparent border-b border-[#E8DCCF]">
+              <tr className="text-gray-500 font-medium">
+                <th className="px-6 py-5">Order ID</th>
+                <th className="px-6 py-5">Customer</th>
+                <th className="px-6 py-5">Amount</th>
+                <th className="px-6 py-5">Payment</th>
+                <th className="px-6 py-5">Status</th>
+                <th className="px-6 py-5 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E8DCCF]">
+              {filteredOrders.map((order) => (
+                <tr key={order._id} className="hover:bg-[#F2EAE0] transition-colors group">
+                  <td className="px-6 py-5 font-bold text-[#6B240C]">
+                    #{order._id.slice(-6).toUpperCase()}
+                  </td>
+                  <td className="px-6 py-5">
+                    <div className="font-semibold">{order.user?.name}</div>
+                    <div className="text-[11px] text-gray-400">{order.user?.email}</div>
+                  </td>
+                  <td className="px-6 py-5 font-bold">
+                    ₹{order.totalPrice.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-5">
+                    <PaymentStatusBadge status={normalizePaymentStatus(order.paymentStatus)} />
+                  </td>
+                  <td className="px-6 py-5">
+                    <OrderStatusBadge status={normalizeOrderStatus(order.orderStatus)} />
+                  </td>
+                  <td className="px-6 py-5 text-right">
+                    <button className="text-gray-400 hover:text-[#722F37] transition-colors">
+                      <Eye size={20} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filteredOrders.length === 0 && (
+            <div className="py-20 text-center text-gray-400 italic">No orders found.</div>
+          )}
+        </div>
       </main>
 
       <Footer />
     </div>
   );
 };
+
+/* ================= HELPER COMPONENT ================= */
+
+const StatCard = ({ title, value, icon, bgColor }: { title: string, value: any, icon: any, bgColor: string }) => (
+  <div className="bg-white border border-[#E8DCCF] p-8 rounded-[24px] flex items-center gap-6 shadow-sm">
+    <div className={`${bgColor} w-16 h-16 rounded-full flex items-center justify-center shrink-0`}>
+      {icon}
+    </div>
+    <div>
+      <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">{title}</p>
+      <p className="text-3xl font-bold text-[#3d1a11] leading-none">{value}</p>
+    </div>
+  </div>
+);
 
 export default AdminOrders;

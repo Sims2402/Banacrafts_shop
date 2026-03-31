@@ -24,9 +24,7 @@ import {
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
-import { useEffect } from "react";
-import { api } from "@/api/api";
-
+import { mockOrders, Order } from "@/data/orders";
 import {
   Dialog,
   DialogContent,
@@ -45,97 +43,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-type Order = any;
-type OrderStatus =
-  | "pending"
-  | "confirmed"
-  | "dispatched"
-  | "delivered"
-  | "cancelled";
-
-type PaymentStatus =
-  | "pending"
-  | "paid"
-  | "failed"
-  | "refunded";
-const normalizeOrderStatus = (status?: string): OrderStatus => {
-  if (!status) return "pending";
-
-  const s = status.toLowerCase();
-
-  if (["pending"].includes(s)) return "pending";
-  if (["confirmed", "processing"].includes(s)) return "confirmed";
-  if (["shipped", "dispatch", "dispatched"].includes(s)) return "dispatched";
-  if (["delivered"].includes(s)) return "delivered";
-  if (["cancelled", "canceled"].includes(s)) return "cancelled";
-
-  return "pending";
-};
-
-const normalizePaymentStatus = (status?: string): PaymentStatus => {
-  if (!status) return "pending";
-
-  const s = status.toLowerCase();
-
-  if (["paid", "success", "completed"].includes(s)) return "paid";
-  if (["failed"].includes(s)) return "failed";
-  if (["refunded"].includes(s)) return "refunded";
-
-  return "pending";
-};
 
 const CustomerOrders = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
-const [loading, setLoading] = useState(true);
-useEffect(() => {
-const fetchOrders = async () => {
-  try {
-    setLoading(true);
-
-    const rawOrders = await api.get<any[]>("/orders/my");
-
-    const normalizedOrders = (rawOrders || []).map((order) => ({
-      id: order._id,
-
-      status: normalizeOrderStatus(order.orderStatus),
-      paymentStatus: normalizePaymentStatus(order.paymentStatus),
-
-      paymentMethod: order.paymentMethod || "cash",
-      deliveryMethod: order.deliveryMethod || "seller_delivery",
-
-      totalAmount: order.totalPrice || 0,
-
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt,
-
-      sellerName: order.seller?.name || "Seller",
-      shippingAddress: order.deliveryAddress || "",
-      customerPhone: order.phone || "",
-
-      products: (order.orderItems || []).map((item: any) => ({
-        productId: item.product?._id || "",
-        productName: item.product?.name || "Product",
-        image: item.product?.images?.[0]?.url || "/placeholder.png",
-        price: item.price || 0,
-        quantity: item.quantity || 1,
-        isReturnable: true,
-      })),
-
-      customerRequest: order.customerRequest || null,
-    }));
-
-    setOrders(normalizedOrders);
-  } catch (error: any) {
-    console.error("Failed to fetch orders:", error.message);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-  fetchOrders();
-}, []);
-
+  const [orders, setOrders] = useState<Order[]>(mockOrders);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState("all");
   const [actionDialog, setActionDialog] = useState<{
@@ -432,14 +342,7 @@ const fetchOrders = async () => {
         </Tabs>
 
         {/* Orders List */}
-        {loading ? (
-  <Card className="heritage-card">
-    <CardContent className="py-12 text-center">
-      <p className="text-muted-foreground">Loading your orders...</p>
-    </CardContent>
-  </Card>
-) : filteredOrders.length === 0 ? (
-
+        {filteredOrders.length === 0 ? (
           <Card className="heritage-card">
             <CardContent className="py-12 text-center">
               <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />

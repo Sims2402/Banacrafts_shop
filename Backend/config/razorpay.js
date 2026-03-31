@@ -1,4 +1,4 @@
-import Razorpay from "razorpay";
+/*import Razorpay from "razorpay";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -9,3 +9,4 @@ const razorpay = new Razorpay({
 });
 
 export default razorpay;
+*/

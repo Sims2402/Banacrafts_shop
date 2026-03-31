@@ -10,10 +10,7 @@ export interface Product {
   price: number;
   originalPrice?: number;
   image: string;
-  images?: {
-    public_id: string;
-    url: string;
-  }[];
+  images: string[];
   category: string;
   material: string;
   tags: string[];
@@ -33,12 +30,7 @@ export const products: Product[] = [
     price: 4500,
     originalPrice: 5500,
     image: silkSaree,
-    images: [
-  {
-    public_id: "silkSaree",
-    url: silkSaree,
-  },
-],
+    images: [silkSaree],
     category: "Sarees",
     material: "Khadi Silk",
     tags: ["Handmade", "Eco-friendly", "Limited Edition"],
@@ -56,12 +48,7 @@ export const products: Product[] = [
     price: 1200,
     originalPrice: 1500,
     image: embroideredClutch,
-    images: [
-  {
-    public_id: "dummy_embroidery",
-    url: embroideredClutch,
-  },
-],
+    images: [embroideredClutch],
     category: "Accessories",
     material: "Cotton Canvas with Embroidery",
     tags: ["Handmade", "Festive", "Traditional"],
@@ -78,12 +65,7 @@ export const products: Product[] = [
     description: "Hand block printed cotton dupatta with traditional paisley and floral motifs. Natural indigo dye gives it a timeless appeal.",
     price: 850,
     image: blockPrintDupatta,
-    images: [
-  {
-    public_id: "blockPrintDupatta",
-    url: blockPrintDupatta,
-  },
-],
+    images: [blockPrintDupatta],
     category: "Dupattas",
     material: "Pure Cotton",
     tags: ["Handmade", "Eco-friendly", "Natural Dye"],
@@ -100,12 +82,7 @@ export const products: Product[] = [
     description: "Intricately carved brass oil lamp (diya) for spiritual and home decor purposes. Each piece is handcrafted by skilled artisans.",
     price: 650,
     image: brassDiya,
-    images: [
-  {
-    public_id: "brassDiya",
-    url: brassDiya,
-  },
-],
+    images: [brassDiya],
     category: "Home Decor",
     material: "Brass",
     tags: ["Handmade", "Spiritual", "Gift Item"],
@@ -123,12 +100,7 @@ export const products: Product[] = [
     price: 1800,
     originalPrice: 2200,
     image: silkSaree,
-    images: [
-  {
-    public_id: "silkSaree",
-    url: silkSaree,
-  },
-],
+    images: [silkSaree],
     category: "Stoles",
     material: "Pure Silk",
     tags: ["Handmade", "Traditional", "Festive"],
@@ -145,12 +117,7 @@ export const products: Product[] = [
     description: "Beautiful handwoven cotton table runner with traditional geometric patterns. Adds warmth to any dining space.",
     price: 450,
     image: blockPrintDupatta,
-    images: [
-  {
-    public_id: "blockPrintDupatta",
-    url: blockPrintDupatta,
-  },
-],
+    images: [blockPrintDupatta],
     category: "Home Decor",
     material: "Handloom Cotton",
     tags: ["Handmade", "Eco-friendly", "Home Essentials"],

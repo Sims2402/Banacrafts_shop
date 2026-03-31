@@ -1,289 +1,273 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { fetchWithAuth } from "@/lib/api";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import StatsCard from "@/components/common/StatsCard";
-import OrderStatusBadge from "@/components/common/OrderStatusBadge";
-import PaymentStatusBadge from "@/components/common/PaymentStatusBadge";
+import AdminNav from "@/components/layout/AdminNav";
 import RevenueChart from "@/components/charts/RevenueChart";
 import OrdersChart from "@/components/charts/OrdersChart";
 import TopProductsChart from "@/components/charts/TopProductsChart";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Users,
-  ShoppingBag,
-  IndianRupee,
-  TrendingUp,
-  Package,
-  Tag,
-  Eye,
-  FileText,
+  Users, ShoppingBag, IndianRupee, Package,
+  TrendingUp, ArrowUpRight, Activity,
 } from "lucide-react";
-import { mockOrders, getTotalRevenue } from "@/data/orders";
-import { mockUsers, getTotalSellers, getTotalCustomers } from "@/data/users";
-import { mockDiscounts, getActiveDiscounts } from "@/data/discounts";
-import { useAuth } from "@/context/AuthContext";
 
-// Mock chart data for admin
-const monthlyRevenueData = [
-  { name: "Aug", revenue: 45000 },
-  { name: "Sep", revenue: 52000 },
-  { name: "Oct", revenue: 68000 },
-  { name: "Nov", revenue: 85000 },
-  { name: "Dec", revenue: 92000 },
-  { name: "Jan", revenue: 78000 },
-];
+/* ── Animated counter hook ── */
+const useCountUp = (target: number, duration = 1200) => {
+  const [value, setValue] = useState(0);
+  const rafRef = useRef<number>();
 
-const weeklyOrdersData = [
-  { name: "Week 1", orders: 28 },
-  { name: "Week 2", orders: 35 },
-  { name: "Week 3", orders: 42 },
-  { name: "Week 4", orders: 38 },
-];
+  useEffect(() => {
+    if (target === 0) return;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      setValue(Math.floor(ease * target));
+      if (p < 1) rafRef.current = requestAnimationFrame(tick);
+      else setValue(target);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current!);
+  }, [target, duration]);
 
-const topProductsData = [
-  { name: "Silk Saree", value: 45 },
-  { name: "Embroidered Clutch", value: 32 },
-  { name: "Block Print Dupatta", value: 28 },
-  { name: "Brass Diya Set", value: 22 },
-  { name: "Handmade Jewelry", value: 18 },
-];
+  return value;
+};
 
+/* ── Live clock ── */
+const useClock = () => {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return time;
+};
+
+/* ══════════════════════════════════════════════════════════
+   MAIN DASHBOARD
+══════════════════════════════════════════════════════════ */
 const AdminDashboard = () => {
-  const { user } = useAuth();
-  const [orders] = useState(mockOrders);
-  
-  const totalRevenue = getTotalRevenue(orders);
-  const totalSellers = getTotalSellers(mockUsers);
-  const totalCustomers = getTotalCustomers(mockUsers);
-  const activeDiscounts = getActiveDiscounts(mockDiscounts).length;
+  const navigate = useNavigate();
+  const time = useClock();
 
-  const recentOrders = orders.slice(0, 5);
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalSellers: 0,
+    totalCustomers: 0,
+  });
+
+  const [monthlyRevenue, setMonthlyRevenue] = useState([]);
+  const [weeklyOrders, setWeeklyOrders] = useState([]);
+  const [topProducts, setTopProducts] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const getDashboard = async () => {
+    try {
+      const data = await fetchWithAuth("/admin/dashboard");
+      setStats(data.stats);
+      setMonthlyRevenue(data.monthlyRevenue);
+      setWeeklyOrders(data.weeklyOrders);
+      setTopProducts(data.topProducts);
+      setLoaded(true);
+    } catch (err) {
+      console.log("Dashboard Error", err);
+    }
+  };
+
+  useEffect(() => { getDashboard(); }, []);
+
+  const greeting = (() => {
+    const h = time.getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  })();
+
+  const dateStr = time.toLocaleDateString("en-IN", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+
+  const timeStr = time.toLocaleTimeString("en-IN", {
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-[#FDF8F4]">
       <Navbar />
-      
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-display font-bold text-foreground">
-            Admin Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Welcome back, {user?.name || "Admin"}! Here's your platform overview.
-          </p>
-        </div>
+      <AdminNav />
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Total Revenue"
-            value={`₹${totalRevenue.toLocaleString()}`}
-            icon={<IndianRupee className="h-4 w-4" />}
-            trend={{ value: 18, isPositive: true }}
-            description="vs last month"
-          />
-          <StatsCard
-            title="Total Orders"
-            value={orders.length}
-            icon={<ShoppingBag className="h-4 w-4" />}
-            trend={{ value: 12, isPositive: true }}
-            description="vs last month"
-          />
-          <StatsCard
-            title="Active Sellers"
-            value={totalSellers}
-            icon={<Package className="h-4 w-4" />}
-            description="Registered sellers"
-          />
-          <StatsCard
-            title="Customers"
-            value={totalCustomers}
-            icon={<Users className="h-4 w-4" />}
-            trend={{ value: 24, isPositive: true }}
-            description="vs last month"
-          />
-        </div>
+      <main className="flex-1 container mx-auto px-8 py-10 space-y-10">
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Link to="/admin/users">
-            <Button variant="outline" className="w-full justify-start gap-2 h-auto py-4">
-              <Users className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">Manage Users</div>
-                <div className="text-xs text-muted-foreground">{mockUsers.length} total users</div>
-              </div>
-            </Button>
-          </Link>
-          <Link to="/admin/orders">
-            <Button variant="outline" className="w-full justify-start gap-2 h-auto py-4">
-              <ShoppingBag className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">All Orders</div>
-                <div className="text-xs text-muted-foreground">View & manage orders</div>
-              </div>
-            </Button>
-          </Link>
-          <Link to="/admin/discounts">
-            <Button variant="outline" className="w-full justify-start gap-2 h-auto py-4">
-              <Tag className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">Discounts</div>
-                <div className="text-xs text-muted-foreground">{activeDiscounts} active</div>
-              </div>
-            </Button>
-          </Link>
-          <Link to="/admin/awareness">
-            <Button variant="outline" className="w-full justify-start gap-2 h-auto py-4">
-              <FileText className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">Awareness</div>
-                <div className="text-xs text-muted-foreground">Manage articles</div>
-              </div>
-            </Button>
-          </Link>
-        </div>
+        {/* ── HEADER BAND ── */}
+        <div className="relative overflow-hidden rounded-3xl bg-[#3d1a11] px-10 py-9 flex items-center justify-between shadow-xl">
+          {/* decorative circles */}
+          <div className="absolute -top-12 -right-12 w-64 h-64 rounded-full bg-[#722F37]/40 blur-2xl pointer-events-none" />
+          <div className="absolute bottom-0 left-1/3 w-40 h-40 rounded-full bg-[#c9856b]/20 blur-3xl pointer-events-none" />
 
-        {/* Customer Service Section */}
-        <Card className="heritage-card mb-8">
-          <CardHeader>
-            <CardTitle className="text-lg font-display">Customer Service</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Link to="/support/track-order">
-                <Button variant="ghost" className="w-full h-auto py-4 flex flex-col gap-2">
-                  <Package className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Track Order</span>
-                </Button>
-              </Link>
-              <Link to="/support/returns-refunds">
-                <Button variant="ghost" className="w-full h-auto py-4 flex flex-col gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Returns & Refunds</span>
-                </Button>
-              </Link>
-              <Link to="/support/shipping-info">
-                <Button variant="ghost" className="w-full h-auto py-4 flex flex-col gap-2">
-                  <ShoppingBag className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Shipping Info</span>
-                </Button>
-              </Link>
-              <Link to="/support/faqs">
-                <Button variant="ghost" className="w-full h-auto py-4 flex flex-col gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  <span className="text-sm">FAQs</span>
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Analytics Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2">
-            <RevenueChart title="Monthly Revenue Trends" data={monthlyRevenueData} />
+          <div className="relative z-10">
+            <p className="text-[#c9856b] text-sm font-semibold tracking-widest uppercase mb-1">
+              {greeting}
+            </p>
+            <h1 className="text-white text-4xl font-serif font-bold leading-tight">
+              Admin Dashboard
+            </h1>
+            <p className="text-white/50 text-sm mt-2">{dateStr}</p>
           </div>
-          <TopProductsChart title="Top Selling Products" data={topProductsData} />
+
+          <div className="relative z-10 text-right hidden md:block">
+            <div className="text-white text-3xl font-mono font-bold tracking-wider tabular-nums">
+              {timeStr}
+            </div>
+            <div className="flex items-center justify-end gap-1.5 mt-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-white/50 text-xs">Live</span>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <OrdersChart title="Weekly Order Volume" data={weeklyOrdersData} />
-          
-          <Card className="heritage-card">
-            <CardHeader>
-              <CardTitle className="text-lg font-display flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Platform Stats
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-3 rounded-lg bg-green-50 border border-green-200">
-                <div className="font-medium text-green-800">
-                  ₹{orders.filter(o => o.paymentStatus === "paid").reduce((sum, o) => sum + o.totalAmount, 0).toLocaleString()}
-                </div>
-                <p className="text-sm text-green-700">Total Paid Revenue</p>
-              </div>
-              <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-                <div className="font-medium text-yellow-800">
-                  {orders.filter(o => o.status === "pending").length} Orders
-                </div>
-                <p className="text-sm text-yellow-700">Pending Confirmation</p>
-              </div>
-              <div className="p-3 rounded-lg bg-orange-50 border border-orange-200">
-                <div className="font-medium text-orange-800">
-                  {orders.filter(o => o.paymentStatus === "pending").length} Orders
-                </div>
-                <p className="text-sm text-orange-700">Payment Pending</p>
-              </div>
-              <div className="p-3 rounded-lg bg-purple-50 border border-purple-200">
-                <div className="font-medium text-purple-800">
-                  {orders.filter(o => o.status === "dispatched").length} Orders
-                </div>
-                <p className="text-sm text-purple-700">In Transit</p>
-              </div>
-            </CardContent>
-          </Card>
+        {/* ── STAT CARDS ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+          <StatCard
+            title="Total Revenue"
+            value={stats.totalRevenue}
+            prefix="₹"
+            icon={<IndianRupee size={20} />}
+            color="emerald"
+            delay={0}
+            loaded={loaded}
+          />
+          <StatCard
+            title="Total Orders"
+            value={stats.totalOrders}
+            icon={<ShoppingBag size={20} />}
+            color="amber"
+            delay={100}
+            loaded={loaded}
+          />
+          <StatCard
+            title="Active Sellers"
+            value={stats.totalSellers}
+            icon={<Package size={20} />}
+            color="violet"
+            delay={200}
+            loaded={loaded}
+          />
+          <StatCard
+            title="Total Customers"
+            value={stats.totalCustomers}
+            icon={<Users size={20} />}
+            color="rose"
+            delay={300}
+            loaded={loaded}
+          />
         </div>
 
-        {/* Recent Orders */}
-        <Card className="heritage-card">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-display">Recent Orders</CardTitle>
-            <Link to="/admin/orders">
-              <Button variant="ghost" size="sm">View All</Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Seller</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.id}</TableCell>
-                    <TableCell>{order.customerName}</TableCell>
-                    <TableCell>{order.sellerName}</TableCell>
-                    <TableCell>₹{order.totalAmount.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <OrderStatusBadge status={order.status} />
-                    </TableCell>
-                    <TableCell>
-                      <PaymentStatusBadge status={order.paymentStatus} />
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {/* ── QUICK ACTIONS ── */}
+        <div>
+          <SectionLabel icon={<Activity size={14} />} text="Quick Actions" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
+            {[
+              { label: "Manage Users",  path: "/admin/users",     emoji: "👥" },
+              { label: "All Orders",    path: "/admin/orders",    emoji: "📦" },
+              { label: "Discounts",     path: "/admin/discounts", emoji: "🏷️" },
+              { label: "Awareness",     path: "/admin/awareness", emoji: "📖" },
+            ].map(({ label, path, emoji }) => (
+              <button
+                key={path}
+                onClick={() => navigate(path)}
+                className="group relative overflow-hidden bg-white border border-[#E8DCCF] rounded-2xl px-6 py-5 text-left hover:border-[#722F37] hover:shadow-lg transition-all duration-300"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-[#722F37]/0 to-[#722F37]/0 group-hover:from-[#722F37]/5 group-hover:to-[#722F37]/10 transition-all duration-300" />
+                <span className="text-2xl mb-3 block">{emoji}</span>
+                <p className="font-serif font-bold text-[#3d1a11] text-base relative z-10">{label}</p>
+                <ArrowUpRight
+                  size={16}
+                  className="absolute top-4 right-4 text-gray-300 group-hover:text-[#722F37] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── CHARTS ── */}
+        <div>
+          <SectionLabel icon={<TrendingUp size={14} />} text="Analytics Overview" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-3">
+            <div className="lg:col-span-2 bg-white rounded-3xl border border-[#E8DCCF] p-7 shadow-sm hover:shadow-md transition-shadow">
+              <RevenueChart title="Monthly Revenue Trends" data={monthlyRevenue} />
+            </div>
+            <div className="bg-white rounded-3xl border border-[#E8DCCF] p-7 shadow-sm hover:shadow-md transition-shadow">
+              <TopProductsChart title="Top Selling Products" data={topProducts} />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-[#E8DCCF] p-7 shadow-sm hover:shadow-md transition-shadow">
+          <OrdersChart title="Weekly Order Volume" data={weeklyOrders} />
+        </div>
+
       </main>
 
       <Footer />
+    </div>
+  );
+};
+
+/* ── Section Label ── */
+const SectionLabel = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
+  <div className="flex items-center gap-2 text-[#722F37]">
+    {icon}
+    <span className="text-xs font-bold uppercase tracking-widest">{text}</span>
+    <div className="flex-1 h-px bg-[#E8DCCF]" />
+  </div>
+);
+
+/* ── Stat Card ── */
+const colorMap: Record<string, { bg: string; text: string; ring: string; bar: string }> = {
+  emerald: { bg: "bg-emerald-50",  text: "text-emerald-600", ring: "ring-emerald-200", bar: "bg-emerald-400" },
+  amber:   { bg: "bg-amber-50",    text: "text-amber-600",   ring: "ring-amber-200",   bar: "bg-amber-400"   },
+  violet:  { bg: "bg-violet-50",   text: "text-violet-600",  ring: "ring-violet-200",  bar: "bg-violet-400"  },
+  rose:    { bg: "bg-rose-50",     text: "text-rose-600",    ring: "ring-rose-200",    bar: "bg-rose-400"    },
+};
+
+const StatCard = ({
+  title, value, prefix = "", icon, color, delay, loaded,
+}: {
+  title: string; value: number; prefix?: string;
+  icon: React.ReactNode; color: string; delay: number; loaded: boolean;
+}) => {
+  const animated = useCountUp(loaded ? value : 0, 1400);
+  const c = colorMap[color] ?? colorMap.rose;
+
+  return (
+    <div
+      className="bg-white border border-[#E8DCCF] rounded-3xl p-7 shadow-sm hover:shadow-lg transition-all duration-300 group"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      {/* Icon */}
+      <div className={`w-11 h-11 rounded-2xl ${c.bg} ring-1 ${c.ring} flex items-center justify-center mb-5 ${c.text} group-hover:scale-110 transition-transform duration-300`}>
+        {icon}
+      </div>
+
+      {/* Value */}
+      <p className="text-[32px] font-bold text-[#3d1a11] leading-none tabular-nums">
+        {prefix}{animated.toLocaleString("en-IN")}
+      </p>
+
+      {/* Label */}
+      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 mt-2">
+        {title}
+      </p>
+
+      {/* Decorative bar */}
+      <div className="mt-5 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${c.bar} rounded-full transition-all duration-1000 ease-out`}
+          style={{ width: loaded ? "65%" : "0%" }}
+        />
+      </div>
     </div>
   );
 };

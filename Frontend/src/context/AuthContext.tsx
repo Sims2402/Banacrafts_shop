@@ -1,10 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-} from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export type UserRole = "customer" | "seller" | "admin" | null;
 
@@ -14,119 +8,117 @@ interface User {
   email: string;
   role: UserRole;
   token: string;
+  avatar?: string | null;  // ✅ profile photo
+  phone?: string;          // ✅ phone number
+  address?: string;        // ✅ address
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  loading: boolean;
-  login: (
-    email: string,
-    password: string,
-    role: UserRole
-  ) => Promise<boolean>;
-  register: (
-    name: string,
-    email: string,
-    password: string,
-    role: UserRole
-  ) => Promise<boolean>;
+  login: (email: string, password: string, role: UserRole) => Promise<boolean>;
   logout: () => void;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;  // ✅ so ProfileEdit can update navbar instantly
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true); // ✅ NEW
 
+  /* 🔥 CHECK TOKEN ON REFRESH */
   useEffect(() => {
-    const storedUser = localStorage.getItem("banacrafts_user");
+    const checkUser = async () => {
 
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+      const storedUser = localStorage.getItem("banacrafts_user");
+      if (!storedUser) return;
 
-    setLoading(false); // ✅ Mark restoration complete
+      try {
+
+        const parsedUser = JSON.parse(storedUser);
+
+        const res = await fetch("http://localhost:5000/api/auth/me", {
+          headers: {
+            Authorization: `Bearer ${parsedUser.token}`
+          }
+        });
+
+        if (!res.ok) {
+          localStorage.removeItem("banacrafts_user");
+          setUser(null);
+          return;
+        }
+
+        const data = await res.json();
+
+        // ✅ avatar, phone, address now included when restoring session
+        setUser({
+          id:      data._id,
+          name:    data.name,
+          email:   data.email,
+          role:    data.role,
+          token:   parsedUser.token,
+          avatar:  data.avatar  || null,
+          phone:   data.phone   || "",
+          address: data.address || "",
+        });
+
+      } catch (err) {
+        localStorage.removeItem("banacrafts_user");
+        setUser(null);
+      }
+    };
+
+    checkUser();
   }, []);
 
+  /* LOGIN */
   const login = async (
     email: string,
     password: string,
     role: UserRole
   ): Promise<boolean> => {
+
     try {
       const res = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, role }),
       });
 
-      if (!res.ok) return false;
+      if (!res.ok) {
+        const err = await res.json();
+        const error: any = new Error(err.message || "Login failed");
+        error.response = { status: res.status };
+        throw error;
+      }
 
       const data = await res.json();
 
       const loggedInUser: User = {
-        id: data._id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        token: data.token,
+        id:      data._id,
+        name:    data.name,
+        email:   data.email,
+        role:    data.role,
+        token:   data.token,
+        avatar:  data.avatar  || null,  // ✅
+        phone:   data.phone   || "",    // ✅
+        address: data.address || "",    // ✅
       };
 
       setUser(loggedInUser);
       localStorage.setItem("banacrafts_user", JSON.stringify(loggedInUser));
 
       return true;
+
     } catch (error) {
       console.error("Login failed", error);
-      return false;
+      throw error;
     }
   };
 
-  const register = async (
-    name: string,
-    email: string,
-    password: string,
-    role: UserRole
-  ): Promise<boolean> => {
-    try {
-      const res = await fetch("http://localhost:5000/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name, email, password, role }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        console.error(err);
-        return false;
-      }
-
-      const data = await res.json();
-
-      const newUser: User = {
-        id: data._id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        token: data.token,
-      };
-
-      setUser(newUser);
-      localStorage.setItem("banacrafts_user", JSON.stringify(newUser));
-
-      return true;
-    } catch (error) {
-      console.error("Registration failed", error);
-      return false;
-    }
-  };
-
+  /* LOGOUT */
   const logout = () => {
     setUser(null);
     localStorage.removeItem("banacrafts_user");
@@ -137,10 +129,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       value={{
         user,
         isAuthenticated: !!user,
-        loading, // ✅ NEW
         login,
-        register,
         logout,
+        setUser,  // ✅ exposed so ProfileEdit.tsx can update name/avatar in real time
       }}
     >
       {children}
@@ -150,7 +141,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;

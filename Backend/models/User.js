@@ -8,41 +8,48 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+
     email: {
       type: String,
       required: true,
       unique: true,
-      lowercase: true
+      lowercase: true,
+      trim: true
     },
+
     password: {
       type: String,
       required: true,
       minlength: 6
     },
+    avatar:  { type: String, default: null },
+    phone:   { type: String, default: "" },
+    address: { type: String, default: "" },
+
     role: {
       type: String,
       enum: ["customer", "seller", "admin"],
       default: "customer"
     },
-    phone: {
-      type: String
-    },
-    address: {
-      type: String
-    }
+
+    phone: String,
+    address: String
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    collection: "users"
+  }
 );
 
-/* Hash password before saving */
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+/* 🔐 HASH PASSWORD (Mongoose 7 correct way) */
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
 
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-/* Compare password during login */
+/* 🔐 COMPARE PASSWORD */
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

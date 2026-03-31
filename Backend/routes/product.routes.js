@@ -6,7 +6,7 @@ import {
   getSellerProducts
 } from "../controllers/product.controller.js";
 
-import protect from "../middleware/auth.middleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 import authorizeRoles from "../middleware/role.middleware.js";
 import upload from "../middleware/upload.middleware.js";
 

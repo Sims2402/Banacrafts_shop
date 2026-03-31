@@ -20,13 +20,7 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const fromState = location.state as { from?: { pathname: string } } | null;
-
-const redirectPath =
-  fromState?.from?.pathname &&
-  !fromState.from.pathname.startsWith("/customer/orders")
-    ? fromState.from.pathname
-    : "/customer/dashboard";
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,30 +30,34 @@ const redirectPath =
     try {
       const success = await login(email, password, role);
 
-    if (!success) {
-      setError("Invalid email or password");
-      setLoading(false);
-      return;
-    }
+      if (!success) {
+        setError("Invalid email or password");
+        setLoading(false);
+        return;
+      }
 
-    // Redirect based on role
-   switch (role) {
-  case "admin":
-    navigate("/admin/dashboard", { replace: true });
-    break;
-  case "seller":
-    navigate("/seller/dashboard", { replace: true });
-    break;
-  case "customer":
-    navigate("/", { replace: true });
-    break;
-  default:
-    navigate("/", { replace: true });
-}
+      // Redirect based on role
+      switch (role) {
+        case "admin":
+          navigate("/admin/dashboard");
+          break;
+        case "seller":
+          navigate("/seller/dashboard");
+          break;
+        case "customer":
+          navigate(from === "/login" ? "/customer/dashboard" : from);
+          break;
+        default:
+          navigate("/");
+      }
 
-
-    } catch (err) {
-      setError("Login failed. Please try again.");
+    } catch (err: any) {
+      // ✅ STEP 3: show a specific message when the role doesn't match
+      if (err?.response?.status === 403) {
+        setError("Incorrect role selected. Please choose the correct account type.");
+      } else {
+        setError("Login failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -133,8 +131,8 @@ const redirectPath =
             </div>
 
             <div className="flex justify-end">
-              <Link 
-                to="/forgot-password" 
+              <Link
+                to="/forgot-password"
                 className="text-sm text-primary hover:underline"
               >
                 Forgot Password?

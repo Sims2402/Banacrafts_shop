@@ -7,28 +7,13 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
-import { useEffect, useState } from "react";
-import { api } from "@/api/api";
 
 const CustomerDashboard = () => {
   const { user, logout } = useAuth();
   const { totalItems, wishlist } = useCart();
-const [ordersCount, setOrdersCount] = useState(0);
-useEffect(() => {
-  const fetchOrders = async () => {
-    try {
-      const orders = await api.get<any[]>("/orders/my");
-      setOrdersCount(orders.length);
-    } catch (error) {
-      console.error("Failed to fetch orders", error);
-      setOrdersCount(0);
-    }
-  };
 
-  fetchOrders();
-}, []);
   const menuItems = [
-    { icon: Package, label: "My Orders", path: "/customer/orders", count: ordersCount },
+    { icon: Package, label: "My Orders", path: "/customer/orders", count: 3 },
     { icon: Heart, label: "Wishlist", path: "/customer/wishlist", count: wishlist.length },
     { icon: ShoppingCart, label: "Cart", path: "/customer/cart", count: totalItems },
   ];

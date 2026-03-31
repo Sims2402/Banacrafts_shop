@@ -21,45 +21,41 @@ const Register = () => {
 
   const { register } = useAuth();
   const navigate = useNavigate();
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError("");
 
-  if (password !== confirmPassword) {
-    setError("Passwords do not match");
-    return;
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
 
-  setLoading(true);
-
-  try {
-    const success = await register(name, email, password, role);
-
-    if (!success) {
-      setError("Registration failed. Please try again.");
-      setLoading(false);
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
       return;
     }
 
-    switch (role) {
-      case "admin":
-        navigate("/admin/dashboard");
-        break;
-      case "seller":
-        navigate("/seller/dashboard");
-        break;
-      case "customer":
-        navigate("/");
-        break;
-      default:
-        navigate("/");
+    setLoading(true);
+
+    try {
+      await register(name, email, password, role);
+      
+      switch (role) {
+        case "admin":
+          navigate("/admin/dashboard");
+          break;
+        case "seller":
+          navigate("/seller/dashboard");
+          break;
+        case "customer":
+          navigate("/customer/dashboard");
+          break;
+        default:
+          navigate("/");
+      }
+    } catch (err) {
+      setError("Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    setError("Registration failed. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* Left Panel - Decorative */}

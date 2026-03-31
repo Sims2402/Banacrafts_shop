@@ -1,37 +1,23 @@
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
-const statusConfig: Record<string, { label: string; className: string }> = {
-  pending: { label: "Pending", className: "bg-yellow-100 text-yellow-800" },
-  confirmed: { label: "Confirmed", className: "bg-blue-100 text-blue-800" },
-  dispatched: { label: "Dispatched", className: "bg-purple-100 text-purple-800" },
-  delivered: { label: "Delivered", className: "bg-green-100 text-green-800" },
-  cancelled: { label: "Cancelled", className: "bg-red-100 text-red-800" },
-};
+interface OrderStatusBadgeProps {
+  status: "pending" | "confirmed" | "dispatched" | "delivered" | "cancelled";
+}
 
-const OrderStatusBadge = ({ status }: { status?: string }) => {
-  if (!status) {
-    return <Badge variant="outline">Unknown</Badge>;
-  }
+const OrderStatusBadge = ({ status }: OrderStatusBadgeProps) => {
+  const statusConfig = {
+    pending: { label: "Pending", className: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+    confirmed: { label: "Confirmed", className: "bg-blue-100 text-blue-800 border-blue-200" },
+    dispatched: { label: "Dispatched", className: "bg-purple-100 text-purple-800 border-purple-200" },
+    delivered: { label: "Delivered", className: "bg-green-100 text-green-800 border-green-200" },
+    cancelled: { label: "Cancelled", className: "bg-red-100 text-red-800 border-red-200" },
+  };
 
   const config = statusConfig[status];
 
-  if (!config) {
-    return <Badge variant="outline">{status}</Badge>;
-  }
-const normalizePaymentStatus = (status?: string) => {
-  if (!status) return "pending";
-
-  const s = status.toLowerCase();
-
-  if (s === "paid" || s === "success") return "paid";
-  if (s === "failed") return "failed";
-  if (s === "refunded") return "refunded";
-
-  return "pending";
-};
-
   return (
-    <Badge className={config.className}>
+    <Badge variant="outline" className={cn("font-medium", config.className)}>
       {config.label}
     </Badge>
   );

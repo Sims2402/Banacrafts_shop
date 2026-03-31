@@ -193,8 +193,15 @@ const Checkout = () => {
   paymentMethod: backendPaymentMethod,
 } = data as any;
 
-navigate(`/order/success/${_id}`);
-
+navigate("/order/success", {
+  state: {
+    orderId: _id,
+    totalAmount: totalPrice,
+    deliveryMethod: backendDeliveryMethod,
+    paymentMethod: backendPaymentMethod,
+    totalSavings,
+  },
+});
 
   } catch (error: any) {
     alert(error.message || "Failed to place order");

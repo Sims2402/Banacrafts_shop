@@ -5,7 +5,7 @@ import {
   getSellerOrders,
   updateOrderStatus
 } from "../controllers/order.controller.js";
-import protect from "../middleware/auth.middleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 import authorizeRoles from "../middleware/role.middleware.js";
 import { requestCancelOrder } from "../controllers/order.controller.js";
 import { handleCancelAction } from "../controllers/order.controller.js";

@@ -41,11 +41,7 @@ const Cart = () => {
 }
   className="flex gap-4 p-4 bg-card rounded-xl border border-border"
 >
-                 <img
-  src={product.images?.[0]?.url || "/placeholder.png"}
-  alt={product.name}
-  className="h-24 w-24 rounded-lg object-cover"
-/>
+                  <img src={product.image} alt={product.name} className="h-24 w-24 rounded-lg object-cover" />
                   <div className="flex-1">
                     <Link to={`/products/${getProductId(product)
 }`} className="font-heading font-semibold hover:text-primary">{product.name}</Link>

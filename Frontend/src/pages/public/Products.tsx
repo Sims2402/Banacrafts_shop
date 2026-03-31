@@ -7,7 +7,6 @@ import { api } from "@/api/api";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useSearchParams } from "react-router-dom";
 
 const Products = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -15,20 +14,10 @@ const Products = () => {
 
   const [products, setProducts] = useState<any[]>([]);
 
-
-
-const [searchParams] = useSearchParams();
-const searchQuery = searchParams.get("search") || "";
-
 useEffect(() => {
   const fetchProducts = async () => {
     try {
-      const endpoint = searchQuery
-        ? `/products?search=${searchQuery}`
-        : "/products";
-
-      const data = await api.get<any[]>(endpoint);
-
+      const data = await api.get<any[]>("/products");
       setProducts(data);
     } catch (error) {
       console.error("Failed to fetch products", error);
@@ -36,7 +25,7 @@ useEffect(() => {
   };
 
   fetchProducts();
-}, [searchQuery]); // THIS IS CRITICAL
+}, []);
 
   const filteredProducts = selectedCategory === "All"
     ? products

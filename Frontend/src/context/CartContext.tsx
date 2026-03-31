@@ -1,43 +1,99 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { Product } from "@/data/products";
-const getProductId = (product: any) => product._id || product.id;
 
+/* ── ID helper ── */
+const getProductId = (product: any): string => product._id || product.id;
+
+/* ── Types ── */
 interface CartItem {
   product: Product;
   quantity: number;
+  addedAt: number; // timestamp — lets you sort by recently added
 }
 
 interface CartContextType {
+  /* Cart */
   items: CartItem[];
   addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
+  isInCart: (productId: string) => boolean;
+  getCartItem: (productId: string) => CartItem | undefined;
   totalItems: number;
   totalPrice: number;
+
+  /* Wishlist */
   wishlist: Product[];
   addToWishlist: (product: Product) => void;
   removeFromWishlist: (productId: string) => void;
+  toggleWishlist: (product: Product) => void;
   isInWishlist: (productId: string) => boolean;
+  moveToCart: (productId: string) => void;
+
+  /* Recently viewed */
+  recentlyViewed: Product[];
+  addToRecentlyViewed: (product: Product) => void;
+
+  /* Coupon */
+  coupon: string | null;
+  discount: number; // percentage e.g. 10 = 10%
+  applyCoupon: (code: string) => boolean;
+  removeCoupon: () => void;
+
+  /* Derived totals */
+  subtotal: number;
+  discountAmount: number;
+  finalTotal: number;
 }
+
+/* ── Coupon table (extend as needed) ── */
+const COUPONS: Record<string, number> = {
+  BANA10: 10,
+  CRAFT20: 20,
+  WELCOME15: 15,
+};
+
+const RECENTLY_VIEWED_LIMIT = 10;
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+/* ════════════════════════════════════════════
+   PROVIDER
+════════════════════════════════════════════ */
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<Product[]>([]);
+  const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
+  const [coupon, setCoupon] = useState<string | null>(null);
+  const [discount, setDiscount] = useState(0);
 
+  /* ── Hydrate from localStorage once on mount ── */
   useEffect(() => {
-    const storedCart = localStorage.getItem("banacrafts_cart");
-    const storedWishlist = localStorage.getItem("banacrafts_wishlist");
-    if (storedCart) {
-      setItems(JSON.parse(storedCart));
-    }
-    if (storedWishlist) {
-      setWishlist(JSON.parse(storedWishlist));
+    try {
+      const cart     = localStorage.getItem("banacrafts_cart");
+      const wl       = localStorage.getItem("banacrafts_wishlist");
+      const rv       = localStorage.getItem("banacrafts_recently_viewed");
+      const cpn      = localStorage.getItem("banacrafts_coupon");
+
+      if (cart)  setItems(JSON.parse(cart));
+      if (wl)    setWishlist(JSON.parse(wl));
+      if (rv)    setRecentlyViewed(JSON.parse(rv));
+      if (cpn) {
+        const parsed = JSON.parse(cpn);
+        setCoupon(parsed.code);
+        setDiscount(parsed.discount);
+      }
+    } catch {
+      // corrupted storage — start fresh
+      localStorage.removeItem("banacrafts_cart");
+      localStorage.removeItem("banacrafts_wishlist");
+      localStorage.removeItem("banacrafts_recently_viewed");
+      localStorage.removeItem("banacrafts_coupon");
     }
   }, []);
 
+  /* ── Persist on every change ── */
   useEffect(() => {
     localStorage.setItem("banacrafts_cart", JSON.stringify(items));
   }, [items]);
@@ -46,67 +102,141 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("banacrafts_wishlist", JSON.stringify(wishlist));
   }, [wishlist]);
 
-  const addToCart = (product: Product, quantity = 1) => {
-    setItems((prevItems) => {
-const existingItem = prevItems.find(
-  (item) => getProductId(item.product) === getProductId(product)
-);
-      if (existingItem) {
-        return prevItems.map((item) =>
-          getProductId(item.product) === getProductId(product)
+  useEffect(() => {
+    localStorage.setItem("banacrafts_recently_viewed", JSON.stringify(recentlyViewed));
+  }, [recentlyViewed]);
+
+  useEffect(() => {
+    if (coupon) {
+      localStorage.setItem("banacrafts_coupon", JSON.stringify({ code: coupon, discount }));
+    } else {
+      localStorage.removeItem("banacrafts_coupon");
+    }
+  }, [coupon, discount]);
+
+  /* ════════════ CART ════════════ */
+
+  const addToCart = useCallback((product: Product, quantity = 1) => {
+    setItems(prev => {
+      const id = getProductId(product);
+      const existing = prev.find(item => getProductId(item.product) === id);
+      if (existing) {
+        return prev.map(item =>
+          getProductId(item.product) === id
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
-      return [...prevItems, { product, quantity }];
+      return [...prev, { product, quantity, addedAt: Date.now() }];
     });
-  };
+  }, []);
 
-  const removeFromCart = (productId: string) => {
-setItems((prevItems) =>
-  prevItems.filter((item) => getProductId(item.product) !== productId)
-);
-  };
+  const removeFromCart = useCallback((productId: string) => {
+    setItems(prev => prev.filter(item => getProductId(item.product) !== productId));
+  }, []);
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = useCallback((productId: string, quantity: number) => {
     if (quantity <= 0) {
       removeFromCart(productId);
       return;
     }
-    setItems((prevItems) =>
-      prevItems.map((item) =>
-        getProductId(item.product) === productId
- ? { ...item, quantity } : item
+    setItems(prev =>
+      prev.map(item =>
+        getProductId(item.product) === productId ? { ...item, quantity } : item
       )
     );
-  };
+  }, [removeFromCart]);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setItems([]);
-  };
+    setCoupon(null);
+    setDiscount(0);
+  }, []);
+
+  const isInCart = useCallback((productId: string) =>
+    items.some(item => getProductId(item.product) === productId),
+  [items]);
+
+  const getCartItem = useCallback((productId: string) =>
+    items.find(item => getProductId(item.product) === productId),
+  [items]);
+
+  /* ════════════ WISHLIST ════════════ */
+
+  const addToWishlist = useCallback((product: Product) => {
+    const id = getProductId(product);
+    setWishlist(prev =>
+      prev.find(p => getProductId(p) === id) ? prev : [...prev, product]
+    );
+  }, []);
+
+  const removeFromWishlist = useCallback((productId: string) => {
+    setWishlist(prev => prev.filter(p => getProductId(p) !== productId));
+  }, []);
+
+  const toggleWishlist = useCallback((product: Product) => {
+    const id = getProductId(product);
+    setWishlist(prev => {
+      const exists = prev.find(p => getProductId(p) === id);
+      return exists
+        ? prev.filter(p => getProductId(p) !== id)
+        : [...prev, product];
+    });
+  }, []);
+
+  const isInWishlist = useCallback((productId: string) =>
+    wishlist.some(p => getProductId(p) === productId),
+  [wishlist]);
+
+  /* Move item from wishlist straight into cart */
+  const moveToCart = useCallback((productId: string) => {
+    const product = wishlist.find(p => getProductId(p) === productId);
+    if (!product) return;
+    addToCart(product, 1);
+    removeFromWishlist(productId);
+  }, [wishlist, addToCart, removeFromWishlist]);
+
+  /* ════════════ RECENTLY VIEWED ════════════ */
+
+  const addToRecentlyViewed = useCallback((product: Product) => {
+    const id = getProductId(product);
+    setRecentlyViewed(prev => {
+      const filtered = prev.filter(p => getProductId(p) !== id);
+      return [product, ...filtered].slice(0, RECENTLY_VIEWED_LIMIT);
+    });
+  }, []);
+
+  /* ════════════ COUPON ════════════ */
+
+  const applyCoupon = useCallback((code: string): boolean => {
+    const pct = COUPONS[code.toUpperCase().trim()];
+    if (pct === undefined) return false;
+    setCoupon(code.toUpperCase().trim());
+    setDiscount(pct);
+    return true;
+  }, []);
+
+  const removeCoupon = useCallback(() => {
+    setCoupon(null);
+    setDiscount(0);
+  }, []);
+
+  /* ════════════ DERIVED TOTALS ════════════ */
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
+
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.product.price * item.quantity, 0
   );
 
-  const addToWishlist = (product: Product) => {
-    if (!wishlist.find((p) => getProductId(p) === getProductId(product)
-)) {
-      setWishlist((prev) => [...prev, product]);
-    }
-  };
+  const discountAmount = Math.round((subtotal * discount) / 100);
 
-  const removeFromWishlist = (productId: string) => {
-    setWishlist((prev) => prev.filter((p) => getProductId(p) !== productId
-));
-  };
+  const finalTotal = subtotal - discountAmount;
 
-  const isInWishlist = (productId: string) => {
-    return wishlist.some((p) => getProductId(p) === productId);
-  };
+  // keep totalPrice as an alias for subtotal for backward compatibility
+  const totalPrice = subtotal;
 
+  /* ════════════ PROVIDE ════════════ */
   return (
     <CartContext.Provider
       value={{
@@ -115,12 +245,29 @@ setItems((prevItems) =>
         removeFromCart,
         updateQuantity,
         clearCart,
+        isInCart,
+        getCartItem,
         totalItems,
         totalPrice,
+
         wishlist,
         addToWishlist,
         removeFromWishlist,
+        toggleWishlist,
         isInWishlist,
+        moveToCart,
+
+        recentlyViewed,
+        addToRecentlyViewed,
+
+        coupon,
+        discount,
+        applyCoupon,
+        removeCoupon,
+
+        subtotal,
+        discountAmount,
+        finalTotal,
       }}
     >
       {children}
@@ -128,6 +275,7 @@ setItems((prevItems) =>
   );
 };
 
+/* ── Hook ── */
 export const useCart = () => {
   const context = useContext(CartContext);
   if (context === undefined) {

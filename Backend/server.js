@@ -1,33 +1,51 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+
 import connectDB from "./config/db.js";
+
+import awarenessRoutes from "./routes/awareness.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
-
+import adminRoutes from "./routes/admin.routes.js";
+import userRoutes from "./routes/user.routes.js";
 
 dotenv.config();
+
+/* CONNECT DATABASE */
 connectDB();
+
+/* CREATE APP */
 const app = express();
 
-/* Middleware */
-app.use(
-  cors({
-    origin: "http://localhost:8080",
-    credentials: true
-  })
-);
+/* MIDDLEWARE */
 
-app.use(express.json());
+// CORS
+app.use(cors({
+  origin: "http://localhost:8080",
+  credentials: true
+}));
+
+// Body parser (increase limit for article images)
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
+
+
+/* ROUTES */
+
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
-app.use("/uploads", express.static("uploads"));
+app.use("/api/admin", adminRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/awareness", awarenessRoutes);
 
-/* Health check route */
+
+/* HEALTH CHECK */
+
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -35,7 +53,21 @@ app.get("/", (req, res) => {
   });
 });
 
-/* Server */
+
+/* GLOBAL ERROR HANDLER */
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+
+  res.status(500).json({
+    success: false,
+    message: "Server Error"
+  });
+});
+
+
+/* SERVER */
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
