@@ -45,7 +45,29 @@ const productSchema = new mongoose.Schema(
     discountPercentage: {
       type: Number,
       default: 0
-    }
+    },
+     ratings: [
+    {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      value: {
+        type: Number,
+        required: true,
+      },
+    },
+  ],
+
+  numRatings: {
+    type: Number,
+    default: 0,
+  },
+
+  rating: {
+    type: Number,
+    default: 0,
+  },
   },
   { timestamps: true }
 );

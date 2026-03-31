@@ -9,12 +9,15 @@ import { api } from "@/api/api";
 import { useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { useState } from "react";
+import { toast } from "@/components/ui/use-toast";
+import { useAuth } from "@/context/AuthContext";
 
 const ProductDetail = () => {
-  const { id } = useParams();
+const { id } = useParams();
 const [product, setProduct] = useState<any | null>(null);
 const [loading, setLoading] = useState(true);
-
+const [selectedRating, setSelectedRating] = useState(0);
+const {user}=useAuth();
 useEffect(() => {
   const fetchProduct = async () => {
     try {
@@ -30,6 +33,35 @@ useEffect(() => {
 
   if (id) fetchProduct();
 }, [id]);
+const handleRating = async (value: number) => {
+   if (!user) {
+    toast({
+      title: "Login required",
+      description: "Please login to rate this product",
+      variant: "destructive",
+    });
+    return;
+  }
+  try {
+    setSelectedRating(value);
+
+    await api.post(`/products/${product._id}/rate`, {
+      value,
+    });
+
+    toast({ title: "Rating submitted ⭐" });
+   
+
+
+  } catch (err: any) {
+    
+    toast({
+      title: "Error",
+      description: err.response?.data?.message,
+      variant: "destructive",
+    });
+  }
+};
 
   const { addToCart, addToWishlist, removeFromWishlist, isInWishlist } = useCart();
   const [quantity, setQuantity] = useState(1);
@@ -117,19 +149,24 @@ if (loading) {
               {/* Rating */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-5 w-5 ${
-                        i < Math.floor(product.rating)
-                          ? "fill-accent text-accent"
-                          : "fill-muted text-muted"
-                      }`}
-                    />
-                  ))}
-                </div>
+  {[...Array(5)].map((_, i) => {
+    const starValue = i + 1;
+
+    return (
+      <Star
+        key={i}
+        onClick={() => handleRating(starValue)}
+        className={`h-5 w-5 cursor-pointer ${
+          starValue <= (selectedRating || product.rating)
+            ? "fill-accent text-accent"
+            : "fill-muted text-muted"
+        }`}
+      />
+    );
+  })}
+</div>
                 <span className="text-sm text-muted-foreground">
-                  ({product.reviews} reviews)
+                  ({product.numRatings} ratings)
                 </span>
               </div>
 

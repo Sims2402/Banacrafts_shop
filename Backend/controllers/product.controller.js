@@ -134,3 +134,47 @@ export const getSellerProducts = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+/* @desc   Add rating
+   @route  POST /api/products/:id/rate
+   @access Private
+*/
+export const rateProduct = async (req, res) => {
+  try {
+    const { value } = req.body;
+
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Check if user already rated
+    const existingRating = product.ratings.find(
+      (r) => r.user.toString() === req.user._id.toString()
+    );
+
+    if (existingRating) {
+      // update rating
+      existingRating.value = value;
+    } else {
+      product.ratings.push({
+        user: req.user._id,
+        value,
+      });
+    }
+
+    // update stats
+    product.numRatings = product.ratings.length;
+
+    product.rating =
+      product.ratings.reduce((acc, item) => acc + item.value, 0) /
+      product.ratings.length;
+
+    await product.save();
+
+    res.json({ message: "Rating submitted", product });
+  } catch (error) {
+    
+    res.status(500).json({ message: error.message });
+  }
+};

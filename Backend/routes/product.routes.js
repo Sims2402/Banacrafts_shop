@@ -3,7 +3,8 @@ import {
   createProduct,
   getAllProducts,
   getProductById,
-  getSellerProducts
+  getSellerProducts,
+  rateProduct
 } from "../controllers/product.controller.js";
 
 import protect from "../middleware/auth.middleware.js";
@@ -33,4 +34,5 @@ router.post(
   createProduct
 );
 
+router.post("/:id/rate", protect, rateProduct);
 export default router;
