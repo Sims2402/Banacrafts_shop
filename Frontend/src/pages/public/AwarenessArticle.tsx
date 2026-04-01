@@ -1,17 +1,52 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { getArticleById } from "@/data/awareness";
 import { ArrowLeft, Clock, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 const AwarenessArticle = () => {
   const { id } = useParams<{ id: string }>();
-  const article = id ? getArticleById(id) : undefined;
 
-  if (!article) {
+  const [article, setArticle] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+
+    fetch(`http://localhost:5000/api/awareness/${id}`)
+      .then(res => {
+        if (!res.ok) throw new Error("Not found");
+        return res.json();
+      })
+      .then(data => {
+        setArticle(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Error fetching article:", err);
+        setError(true);
+        setLoading(false);
+      });
+  }, [id]);
+
+  // LOADING
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground">Loading article...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // NOT FOUND / ERROR
+  if (error || !article) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -36,10 +71,11 @@ const AwarenessArticle = () => {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1">
-        {/* Hero Section */}
+
+        {/* Hero Image */}
         <div className="relative h-[40vh] md:h-[50vh] overflow-hidden">
           <img
-            src={article.image}
+            src={article.image || "/fallback.jpg"}
             alt={article.title}
             className="w-full h-full object-cover"
           />
@@ -49,6 +85,7 @@ const AwarenessArticle = () => {
         {/* Article Content */}
         <article className="container max-w-3xl mx-auto px-4 -mt-24 relative z-10">
           <div className="bg-card rounded-lg shadow-lg p-6 md:p-10">
+
             {/* Back Link */}
             <Link
               to="/awareness"
@@ -70,7 +107,7 @@ const AwarenessArticle = () => {
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-8 pb-6 border-b">
               <span className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
-                {new Date(article.publishedAt).toLocaleDateString("en-US", {
+                {new Date(article.createdAt).toLocaleDateString("en-US", {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
@@ -89,7 +126,7 @@ const AwarenessArticle = () => {
 
             {/* Content */}
             <div className="prose prose-slate dark:prose-invert max-w-none">
-              {article.content.split("\n\n").map((paragraph, index) => {
+              {article.content.split("\n\n").map((paragraph: string, index: number) => {
                 if (paragraph.startsWith("**") && paragraph.endsWith("**")) {
                   return (
                     <h2 key={index} className="text-xl font-heading font-semibold mt-8 mb-4">
@@ -101,7 +138,7 @@ const AwarenessArticle = () => {
                   const items = paragraph.split("\n").filter(Boolean);
                   return (
                     <ul key={index} className="list-disc list-inside space-y-2 my-4">
-                      {items.map((item, i) => (
+                      {items.map((item: string, i: number) => (
                         <li key={i} className="text-foreground/80">
                           {item.replace("- ", "")}
                         </li>
@@ -116,10 +153,10 @@ const AwarenessArticle = () => {
                 );
               })}
             </div>
+
           </div>
         </article>
 
-        {/* Spacer */}
         <div className="py-12" />
       </main>
       <Footer />

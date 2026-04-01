@@ -1,14 +1,49 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import ArtisanCard from "@/components/common/ArtisanCard";
-import { artisans } from "@/data/artisans";
+
+interface Artisan {
+  _id: string;
+  name: string;
+  craft: string;
+  specialty: string;
+  location: string;
+  experience: number;
+  description: string;
+  bio: string;
+  image: string;
+  productsCount: number;
+  achievements: string[];
+}
 
 const Artisans = () => {
+  const [artisans, setArtisans] = useState<Artisan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchArtisans = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/artisans");
+        const data = await res.json();
+        if (data.success) {
+          setArtisans(data.data);
+        } else {
+          setError("Failed to load artisans");
+        }
+      } catch (err) {
+        setError("Could not connect to server");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchArtisans();
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-
       <main className="flex-1">
         {/* Header */}
         <section className="bg-heritage-maroon text-heritage-cream py-12 md:py-16">
@@ -26,17 +61,28 @@ const Artisans = () => {
         {/* Artisans Grid */}
         <section className="py-12 md:py-16">
           <div className="container">
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {artisans.map((artisan, idx) => (
-                <div
-                  key={artisan.id}
-                  className="animate-fade-in-up"
-                  style={{ animationDelay: `${idx * 100}ms` }}
-                >
-                  <ArtisanCard artisan={artisan} />
-                </div>
-              ))}
-            </div>
+            {loading && (
+              <p className="text-center text-muted-foreground">Loading artisans...</p>
+            )}
+            {error && (
+              <p className="text-center text-red-500">{error}</p>
+            )}
+            {!loading && !error && artisans.length === 0 && (
+              <p className="text-center text-muted-foreground">No artisans found.</p>
+            )}
+            {!loading && !error && (
+              <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                {artisans.map((artisan, idx) => (
+                  <div
+                    key={artisan._id}
+                    className="animate-fade-in-up"
+                    style={{ animationDelay: `${idx * 100}ms` }}
+                  >
+                    <ArtisanCard artisan={{ ...artisan, id: artisan._id }} />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
@@ -51,7 +97,6 @@ const Artisans = () => {
                 Together, we're making a difference
               </p>
             </div>
-
             <div className="grid gap-8 md:grid-cols-4">
               {[
                 { number: "200+", label: "Artisans Empowered" },
@@ -70,7 +115,6 @@ const Artisans = () => {
           </div>
         </section>
       </main>
-
       <Footer />
     </div>
   );

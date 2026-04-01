@@ -1,6 +1,7 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import authorizeRoles from "../middleware/role.middleware.js";
+import Artisan from "../models/Artisan.js"; // ← added
 
 import {
   getDashboardData,
@@ -41,7 +42,6 @@ router.get(
   getDashboardData
 );
 
-
 /* =====================================================
    USER MANAGEMENT
 ===================================================== */
@@ -66,7 +66,6 @@ router.delete(
   authorizeRoles("admin"),
   deleteUser
 );
-
 
 /* =====================================================
    DISCOUNT MANAGEMENT
@@ -100,12 +99,10 @@ router.delete(
   deleteDiscount
 );
 
-
 /* =====================================================
    AWARENESS HUB
 ===================================================== */
 
-// Get all articles
 router.get(
   "/awareness",
   protect,
@@ -113,7 +110,6 @@ router.get(
   getAllArticles
 );
 
-// Get single article
 router.get(
   "/awareness/:id",
   protect,
@@ -121,7 +117,6 @@ router.get(
   getSingleArticle
 );
 
-// Create article
 router.post(
   "/awareness",
   protect,
@@ -129,7 +124,6 @@ router.post(
   createArticle
 );
 
-// Update article (for Edit button)
 router.put(
   "/awareness/:id",
   protect,
@@ -137,14 +131,12 @@ router.put(
   updateArticle
 );
 
-// Delete article
 router.delete(
   "/awareness/:id",
   protect,
   authorizeRoles("admin"),
   deleteArticle
 );
-
 
 /* =====================================================
    ORDERS
@@ -155,6 +147,71 @@ router.get(
   protect,
   authorizeRoles("admin"),
   getAllOrdersAdmin
+);
+
+/* =====================================================
+   ARTISAN MANAGEMENT  ← added
+===================================================== */
+
+router.get(
+  "/artisans",
+  protect,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      const artisans = await Artisan.find().sort({ createdAt: -1 });
+      res.json({ success: true, data: artisans });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
+);
+
+router.post(
+  "/artisans",
+  protect,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      const artisan = new Artisan(req.body);
+      const saved = await artisan.save();
+      res.status(201).json({ success: true, data: saved });
+    } catch (err) {
+      res.status(400).json({ success: false, message: err.message });
+    }
+  }
+);
+
+router.put(
+  "/artisans/:id",
+  protect,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      const updated = await Artisan.findByIdAndUpdate(
+        req.params.id,
+        req.body,
+        { new: true }
+      );
+      res.json({ success: true, data: updated });
+    } catch (err) {
+      res.status(400).json({ success: false, message: err.message });
+    }
+  }
+);
+
+router.delete(
+  "/artisans/:id",
+  protect,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      await Artisan.findByIdAndDelete(req.params.id);
+      res.json({ success: true, message: "Artisan deleted" });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
 );
 
 export default router;

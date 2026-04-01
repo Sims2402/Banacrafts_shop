@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, ShoppingBag, Ticket, BookOpen } from "lucide-react";
+import { LayoutDashboard, Users, ShoppingBag, Ticket, BookOpen, Palette } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const navItems = [
@@ -8,6 +8,7 @@ const navItems = [
   { name: "Orders",    path: "/admin/orders",      icon: ShoppingBag     },
   { name: "Discounts", path: "/admin/discounts",   icon: Ticket          },
   { name: "Awareness", path: "/admin/awareness",   icon: BookOpen        },
+  { name: "Artisans",  path: "/admin/artisans",    icon: Palette         }, // ← added
 ];
 
 const AdminNav = () => {

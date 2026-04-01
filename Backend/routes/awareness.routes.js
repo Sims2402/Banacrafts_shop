@@ -24,6 +24,18 @@ router.get("/", async (req, res) => {
   }
 
 });
+/* ADD ARTICLE */
+
+router.post("/", async (req, res) => {
+  try {
+    const newArticle = new Awareness(req.body);
+    const saved = await newArticle.save();
+
+    res.status(201).json(saved);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
 
 
 /* GET SINGLE ARTICLE */

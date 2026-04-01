@@ -1,8 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { awarenessArticles } from "@/data/awareness";
 import { Clock, ArrowRight, Plus } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -11,19 +10,42 @@ const Awareness = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/awareness")
+      .then(res => res.json())
+      .then(data => {
+        setArticles(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Error fetching awareness:", err);
+        setError("Failed to load articles.");
+        setLoading(false);
+      });
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
+
       <main className="flex-1">
+        {/* HEADER */}
         <section className="bg-heritage-maroon text-heritage-cream py-12 md:py-16">
           <div className="container">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="font-heading text-4xl md:text-5xl font-bold">Awareness</h1>
+                <h1 className="font-heading text-4xl md:text-5xl font-bold">
+                  Awareness
+                </h1>
                 <p className="mt-3 text-heritage-cream/80 max-w-2xl">
                   Learn about handcrafted traditions, sustainability, and women empowerment.
                 </p>
               </div>
+
               {isAdmin && (
                 <Link to="/admin/awareness">
                   <Button className="bg-heritage-cream text-heritage-maroon hover:bg-heritage-cream/90">
@@ -35,31 +57,88 @@ const Awareness = () => {
             </div>
           </div>
         </section>
+
+        {/* ARTICLES */}
         <section className="py-12 md:py-16">
           <div className="container">
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {awarenessArticles.map((article) => (
-                <Link key={article.id} to={`/awareness/${article.id}`} className="block">
-                  <article className="heritage-card group cursor-pointer">
-                    <div className="aspect-video overflow-hidden">
-                      <img src={article.image} alt={article.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    </div>
-                    <div className="p-6">
-                      <span className="heritage-badge text-xs">{article.category}</span>
-                      <h3 className="font-heading text-xl font-semibold mt-3 group-hover:text-primary transition-colors">{article.title}</h3>
-                      <p className="text-muted-foreground text-sm mt-2 line-clamp-2">{article.excerpt}</p>
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" />{article.readTime} min read</span>
-                        <span className="text-primary text-sm font-medium flex items-center gap-1">Read More <ArrowRight className="h-3 w-3" /></span>
+
+            {/* LOADING */}
+            {loading && (
+              <div className="text-center text-muted-foreground py-12">
+                Loading articles...
+              </div>
+            )}
+
+            {/* ERROR */}
+            {error && (
+              <div className="text-center text-red-500 py-12">
+                {error}
+              </div>
+            )}
+
+            {/* NO ARTICLES */}
+            {!loading && !error && articles.length === 0 && (
+              <div className="text-center text-muted-foreground py-12">
+                No articles found.
+              </div>
+            )}
+
+            {/* ARTICLES GRID */}
+            {!loading && !error && articles.length > 0 && (
+              <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                {articles.map((article) => (
+                  <Link
+                    key={article._id}
+                    to={`/awareness/${article._id}`}
+                    className="block"
+                  >
+                    <article className="heritage-card group cursor-pointer">
+
+                      {/* IMAGE */}
+                      <div className="aspect-video overflow-hidden">
+                        <img
+                          src={article.image || "/fallback.jpg"}
+                          alt={article.title}
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
                       </div>
-                    </div>
-                  </article>
-                </Link>
-              ))}
-            </div>
+
+                      {/* CONTENT */}
+                      <div className="p-6">
+                        <span className="heritage-badge text-xs">
+                          {article.category}
+                        </span>
+
+                        <h3 className="font-heading text-xl font-semibold mt-3 group-hover:text-primary transition-colors">
+                          {article.title}
+                        </h3>
+
+                        <p className="text-muted-foreground text-sm mt-2 line-clamp-2">
+                          {article.excerpt}
+                        </p>
+
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {article.readTime} min read
+                          </span>
+
+                          <span className="text-primary text-sm font-medium flex items-center gap-1">
+                            Read More <ArrowRight className="h-3 w-3" />
+                          </span>
+                        </div>
+                      </div>
+
+                    </article>
+                  </Link>
+                ))}
+              </div>
+            )}
+
           </div>
         </section>
       </main>
+
       <Footer />
     </div>
   );

@@ -48,6 +48,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminDiscounts from "./pages/admin/AdminDiscounts";
 import AdminAwareness from "./pages/admin/AdminAwareness";
+import AdminArtisans from "./pages/admin/AdminArtisans"; // ← added
 
 /* Support Pages */
 import ReturnsRefunds from "./pages/support/ReturnsRefunds";
@@ -74,17 +75,14 @@ const App = () => (
             <Routes>
 
               {/* PUBLIC ROUTES */}
-
               <Route path="/" element={<Index />} />
               <Route path="/products" element={<Products />} />
               <Route path="/products/:id" element={<ProductDetail />} />
               <Route path="/artisans" element={<Artisans />} />
               <Route path="/artisans/:id" element={<ArtisanDetail />} />
               <Route path="/about" element={<About />} />
-
               <Route path="/awareness" element={<Awareness />} />
               <Route path="/awareness/:id" element={<AwarenessArticle />} />
-
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -92,14 +90,12 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
 
               {/* SUPPORT ROUTES */}
-
               <Route path="/support/returns-refunds" element={<ReturnsRefunds />} />
               <Route path="/support/shipping-info" element={<ShippingInfo />} />
               <Route path="/support/faqs" element={<FAQs />} />
               <Route path="/support/track-order" element={<TrackOrder />} />
 
               {/* CUSTOMER ROUTES */}
-
               <Route
                 path="/customer/dashboard"
                 element={
@@ -108,10 +104,8 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-
               <Route path="/customer/cart" element={<Cart />} />
               <Route path="/customer/wishlist" element={<Wishlist />} />
-
               <Route
                 path="/customer/checkout"
                 element={
@@ -120,7 +114,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-
               <Route
                 path="/customer/orders"
                 element={
@@ -129,11 +122,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-
               <Route path="/order/success" element={<OrderSuccess />} />
-
-              {/* PROFILE EDIT ROUTE (NEW) */}
-
               <Route
                 path="/profile/edit"
                 element={
@@ -144,7 +133,6 @@ const App = () => (
               />
 
               {/* SELLER ROUTES */}
-
               <Route
                 path="/seller/dashboard"
                 element={
@@ -153,7 +141,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-
               <Route
                 path="/seller/products"
                 element={
@@ -162,7 +149,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-
               <Route
                 path="/seller/orders"
                 element={
@@ -171,7 +157,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-
               <Route
                 path="/seller/discounts"
                 element={
@@ -180,7 +165,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-
               <Route
                 path="/seller/reviews"
                 element={
@@ -191,7 +175,6 @@ const App = () => (
               />
 
               {/* ADMIN ROUTES */}
-
               <Route
                 path="/admin/dashboard"
                 element={
@@ -200,7 +183,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-
               <Route
                 path="/admin/users"
                 element={
@@ -209,7 +191,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-
               <Route
                 path="/admin/orders"
                 element={
@@ -218,7 +199,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-
               <Route
                 path="/admin/discounts"
                 element={
@@ -227,7 +207,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-
               <Route
                 path="/admin/awareness"
                 element={
@@ -236,9 +215,16 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/admin/artisans"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminArtisans />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* FALLBACK */}
-
               <Route path="*" element={<NotFound />} />
 
             </Routes>
