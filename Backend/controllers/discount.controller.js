@@ -1,33 +1,47 @@
 import Discount from "../models/Discount.js";
 
-/* GET ALL */
+// GET ALL
 export const getDiscounts = async (req, res) => {
-  const discounts = await Discount.find();
-  res.json(discounts);
+  try {
+    const discounts = await Discount.find().sort({ createdAt: -1 });
+    res.json(discounts);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };
 
-/* CREATE */
+// CREATE
 export const createDiscount = async (req, res) => {
-  const discount = await Discount.create({
-    ...req.body,
-    createdBy: req.user._id,
-  });
-
-  res.json(discount);
+  try {
+    const discount = new Discount(req.body);
+    await discount.save();
+    res.status(201).json(discount);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };
 
-/* TOGGLE ACTIVE */
+// TOGGLE ACTIVE
 export const toggleDiscount = async (req, res) => {
-  const discount = await Discount.findById(req.params.id);
+  try {
+    const discount = await Discount.findById(req.params.id);
+    if (!discount) return res.status(404).json({ message: "Not found" });
 
-  discount.isActive = !discount.isActive;
-  await discount.save();
+    discount.isActive = !discount.isActive;
+    await discount.save();
 
-  res.json(discount);
+    res.json(discount);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };
 
-/* DELETE */
+// DELETE
 export const deleteDiscount = async (req, res) => {
-  await Discount.findByIdAndDelete(req.params.id);
-  res.json({ message: "Deleted" });
+  try {
+    await Discount.findByIdAndDelete(req.params.id);
+    res.json({ message: "Deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };

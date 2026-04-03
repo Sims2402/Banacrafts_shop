@@ -11,6 +11,7 @@ import orderRoutes from "./routes/order.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import discountRoutes from "./routes/discountRoutes.js"; // ✅ ADD THIS
 
 dotenv.config();
 
@@ -37,8 +38,11 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/awareness", awarenessRoutes);
-app.use("/api/artisans", artisanRoutes);        // ← was imported but never used
-app.use("/api/admin/artisans", artisanRoutes);  // ← needed for AdminArtisans page
+app.use("/api/artisans", artisanRoutes);
+app.use("/api/admin/artisans", artisanRoutes);
+
+// ✅ THIS WAS MISSING
+app.use("/api/discounts", discountRoutes);
 
 /* HEALTH CHECK */
 app.get("/", (req, res) => {
