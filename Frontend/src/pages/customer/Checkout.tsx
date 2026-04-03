@@ -176,7 +176,10 @@ const handlePlaceOrder = async () => {
       product: getProductId(item.product),
       quantity: item.quantity,
     }));
-
+if (!/^[6-9]\d{9}$/.test(phone)) {
+  alert("Please enter a valid 10-digit phone number");
+  return;
+}
     // 🟡 CASH FLOW (unchanged)
     if (paymentMethod === "cash") {
       const data:any = await api.post("/orders", {
@@ -351,12 +354,16 @@ navigate(`/order/success/${orderId}`);
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
                       <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="Enter your phone number"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                      />
+  id="phone"
+  type="tel"
+  placeholder="Enter your phone number"
+  value={phone}
+  maxLength={10}
+  onChange={(e) => {
+    const value = e.target.value.replace(/\D/g, ""); // only digits
+    setPhone(value);
+  }}
+/>
                     </div>
                   </div>
                 )}
@@ -569,7 +576,9 @@ navigate(`/order/success/${orderId}`);
                   variant="hero"
                   className="w-full"
                   onClick={handlePlaceOrder}
-                  disabled={isProcessing || (deliveryMethod === "seller_delivery" && !address)}
+                  disabled={isProcessing || (deliveryMethod === "seller_delivery" && !address) || phone.length !== 10
+                    
+                  }
                 >
                   {isProcessing ? "Processing..." : "Place Order"}
                 </Button>
