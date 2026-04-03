@@ -576,7 +576,7 @@ navigate(`/order/success/${orderId}`);
                   variant="hero"
                   className="w-full"
                   onClick={handlePlaceOrder}
-                  disabled={isProcessing || (deliveryMethod === "seller_delivery" && !address) || phone.length !== 10
+                  disabled={isProcessing || (deliveryMethod === "seller_delivery" && !address)
                     
                   }
                 >
