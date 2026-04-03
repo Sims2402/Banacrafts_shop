@@ -11,7 +11,7 @@ interface ArtisanCardProps {
 
 const ArtisanCard: React.FC<ArtisanCardProps> = ({ artisan, className }) => {
   return (
-    <Link to={`/artisans/${artisan.id}`} className={cn("block group", className)}>
+    <Link to={`/artisans/${artisan._id}`} className={cn("block group", className)}>
       <div className="heritage-card">
         {/* Image */}
         <div className="relative aspect-[3/4] overflow-hidden">

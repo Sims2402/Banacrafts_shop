@@ -3,7 +3,7 @@ import artisan2 from "@/assets/artisans/artisan-2.jpg";
 import artisan3 from "@/assets/artisans/artisan-3.jpg";
 
 export interface Artisan {
-  id: string;
+  _id: string;
   name: string;
   specialty: string;
   experience: number;
@@ -16,7 +16,7 @@ export interface Artisan {
 
 export const artisans: Artisan[] = [
   {
-    id: "1",
+    _id: "1",
     name: "Kamala Devi",
     specialty: "Handloom Weaving",
     experience: 25,
@@ -31,7 +31,7 @@ export const artisans: Artisan[] = [
     productsCount: 45,
   },
   {
-    id: "2",
+    _id: "2",
     name: "Priya Sharma",
     specialty: "Embroidery & Mirror Work",
     experience: 12,
@@ -46,7 +46,7 @@ export const artisans: Artisan[] = [
     productsCount: 38,
   },
   {
-    id: "3",
+    _id: "3",
     name: "Savitri Kumari",
     specialty: "Pottery & Metal Work",
     experience: 40,
@@ -62,4 +62,4 @@ export const artisans: Artisan[] = [
   },
 ];
 
-export const getArtisanById = (id: string) => artisans.find((a) => a.id === id);
+export const getArtisanById = (_id: string) => artisans.find((a) => a._id === _id);

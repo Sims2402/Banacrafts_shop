@@ -6,7 +6,8 @@ import authRoutes from "./routes/auth.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
-
+import awarenessRoutes from "./routes/awareness.routes.js";
+import artisanRoutes from "./routes/artisan.routes.js";
 
 dotenv.config();
 connectDB();
@@ -29,7 +30,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/uploads", express.static("uploads"));
-
+app.use("/api/awareness", awarenessRoutes);
+app.use("/api/artisans", artisanRoutes);
 /* Health check route */
 app.get("/", (req, res) => {
   res.json({

@@ -6,10 +6,24 @@ import { getArticleById } from "@/data/awareness";
 import { ArrowLeft, Clock, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
+import { useEffect, useState } from "react";
+import axios from "axios";
 const AwarenessArticle = () => {
   const { id } = useParams<{ id: string }>();
-  const article = id ? getArticleById(id) : undefined;
+const [article, setArticle] = useState(null);
+
+useEffect(() => {
+  const fetchArticle = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/awareness/${id}`);
+      setArticle(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (id) fetchArticle();
+}, [id]);
 
   if (!article) {
     return (

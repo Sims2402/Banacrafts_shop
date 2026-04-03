@@ -2,9 +2,30 @@ import React from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import ArtisanCard from "@/components/common/ArtisanCard";
-import { artisans } from "@/data/artisans";
+import { useEffect, useState } from "react";
+import axios from "axios";
+
+
+
+
 
 const Artisans = () => {
+  const [artisans, setArtisans] = useState([]);
+  useEffect(() => {
+  const fetchArtisans = async () => {
+    try {
+      
+      const res = await axios.get("http://localhost:5000/api/artisans");
+      
+      setArtisans(res.data.data);
+    } catch (err) {
+
+      console.error(err);
+    }
+  };
+
+  fetchArtisans();
+}, []);
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -29,7 +50,7 @@ const Artisans = () => {
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               {artisans.map((artisan, idx) => (
                 <div
-                  key={artisan.id}
+                  key={artisan._id}
                   className="animate-fade-in-up"
                   style={{ animationDelay: `${idx * 100}ms` }}
                 >

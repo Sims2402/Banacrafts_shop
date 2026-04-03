@@ -4,13 +4,38 @@ import { ArrowLeft, Award, MapPin } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/common/ProductCard";
-import { getArtisanById } from "@/data/artisans";
-import { getProductsByArtisan } from "@/data/products";
+import { useEffect, useState } from "react";
+import axios from "axios";
+
 
 const ArtisanDetail = () => {
   const { id } = useParams();
-  const artisan = getArtisanById(id || "");
-  const artisanProducts = getProductsByArtisan(id || "");
+const [artisan, setArtisan] = useState(null);
+const [artisanProducts, setArtisanProducts] = useState([]);
+useEffect(() => {
+  const fetchArtisan = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/artisans/${id}`);
+      setArtisan(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/products?artisanId=${id}`);
+      setArtisanProducts(res.data.data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (id) {
+    fetchArtisan();
+    fetchProducts();
+  }
+}, [id]);
 
   if (!artisan) {
     return (
@@ -90,7 +115,7 @@ const ArtisanDetail = () => {
               <div>
                 <h2 className="font-heading text-xl font-semibold mb-4">Achievements</h2>
                 <ul className="space-y-3">
-                  {artisan.achievements.map((achievement, idx) => (
+                 {artisan.achievements?.map((achievement:string, idx:number) => (
                     <li key={idx} className="flex items-start gap-3">
                       <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 flex-shrink-0">
                         <Award className="h-4 w-4 text-primary" />
@@ -102,14 +127,14 @@ const ArtisanDetail = () => {
               </div>
 
               {/* Products */}
-              {artisanProducts.length > 0 && (
+              {Array.isArray(artisanProducts) && artisanProducts.length > 0 && (
                 <div>
                   <h2 className="font-heading text-xl font-semibold mb-6">
                     Products by {artisan.name}
                   </h2>
                   <div className="grid gap-6 sm:grid-cols-2">
                     {artisanProducts.map((product) => (
-                      <ProductCard key={product.id} product={product} />
+                      <ProductCard key={product._id} product={product} />
                     ))}
                   </div>
                 </div>
@@ -125,3 +150,4 @@ const ArtisanDetail = () => {
 };
 
 export default ArtisanDetail;
+

@@ -2,7 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { awarenessArticles } from "@/data/awareness";
+import { useEffect, useState } from "react";
+import axios from "axios";
 import { Clock, ArrowRight, Plus } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,20 @@ import { Button } from "@/components/ui/button";
 const Awareness = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+const [articles, setArticles] = useState([]);
 
+useEffect(() => {
+  const fetchArticles = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/awareness");
+      setArticles(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  fetchArticles();
+}, []);
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -38,8 +52,8 @@ const Awareness = () => {
         <section className="py-12 md:py-16">
           <div className="container">
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {awarenessArticles.map((article) => (
-                <Link key={article.id} to={`/awareness/${article.id}`} className="block">
+              {articles.map((article) => (
+                <Link key={article._id} to={`/awareness/${article._id}`} className="block">
                   <article className="heritage-card group cursor-pointer">
                     <div className="aspect-video overflow-hidden">
                       <img src={article.image} alt={article.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
