@@ -1,0 +1,75 @@
+# ------------------------------
+# Node modules
+# ------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ------------------------------
+# Environment variables (VERY IMPORTANT 🔐)
+# ------------------------------
+.env
+.env.*
+!.env.example
+
+# ------------------------------
+# Build folders
+# ------------------------------
+build/
+dist/
+.next/
+out/
+
+# ------------------------------
+# Logs
+# ------------------------------
+logs/
+*.log
+
+# ------------------------------
+# OS files
+# ------------------------------
+.DS_Store
+Thumbs.db
+
+# ------------------------------
+# IDE / Editor files
+# ------------------------------
+.vscode/
+.idea/
+*.swp
+
+# ------------------------------
+# Temporary files
+# ------------------------------
+tmp/
+temp/
+
+# ------------------------------
+# Uploads (if using multer/local storage)
+# ------------------------------
+uploads/
+
+# ------------------------------
+# Coverage
+# ------------------------------
+coverage/
+
+# ------------------------------
+# Parcel / Vite / Cache
+# ------------------------------
+.cache/
+.parcel-cache/
+vite.svg
+
+# ------------------------------
+# Typescript
+# ------------------------------
+*.tsbuildinfo
+
+# ------------------------------
+# Optional: Lock files (keep if team, ignore if solo)
+# ------------------------------
+# package-lock.json
+# yarn.lock

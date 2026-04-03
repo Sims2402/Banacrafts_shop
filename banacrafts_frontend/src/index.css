@@ -1,0 +1,161 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Heritage Color Palette - Warm Indian Handcraft Tones */
+    --background: 35 30% 96%; /* Fabric cream */
+    --foreground: 15 25% 15%; /* Deep brown text */
+
+    --card: 35 25% 94%;
+    --card-foreground: 15 25% 15%;
+
+    --popover: 35 30% 96%;
+    --popover-foreground: 15 25% 15%;
+
+    /* Deep Wine Maroon - Primary Brand */
+    --primary: 350 60% 28%;
+    --primary-foreground: 35 30% 96%;
+
+    /* Terracotta - Secondary */
+    --secondary: 18 50% 45%;
+    --secondary-foreground: 35 30% 96%;
+
+    /* Muted Beige */
+    --muted: 35 20% 88%;
+    --muted-foreground: 15 15% 45%;
+
+    /* Muted Gold Accent */
+    --accent: 38 55% 50%;
+    --accent-foreground: 15 25% 15%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 35 30% 96%;
+
+    --border: 30 20% 82%;
+    --input: 30 20% 85%;
+    --ring: 350 60% 28%;
+
+    --radius: 0.75rem;
+
+    /* Custom Heritage Variables */
+    --heritage-cream: 35 40% 92%;
+    --heritage-maroon: 350 60% 28%;
+    --heritage-terracotta: 18 50% 45%;
+    --heritage-gold: 38 55% 50%;
+    --heritage-rust: 15 55% 38%;
+    --heritage-brown: 25 35% 25%;
+
+    /* Gradients */
+    --gradient-heritage: linear-gradient(135deg, hsl(350 60% 28%), hsl(18 50% 45%));
+    --gradient-warm: linear-gradient(180deg, hsl(35 40% 92%), hsl(35 30% 96%));
+    --gradient-gold: linear-gradient(135deg, hsl(38 55% 50%), hsl(38 70% 60%));
+
+    /* Shadows */
+    --shadow-soft: 0 4px 20px -4px hsl(15 25% 15% / 0.1);
+    --shadow-card: 0 8px 30px -8px hsl(15 25% 15% / 0.15);
+    --shadow-elevated: 0 20px 60px -15px hsl(15 25% 15% / 0.2);
+
+    /* Dashboard/Sidebar */
+    --sidebar-background: 35 25% 94%;
+    --sidebar-foreground: 15 25% 25%;
+    --sidebar-primary: 350 60% 28%;
+    --sidebar-primary-foreground: 35 30% 96%;
+    --sidebar-accent: 35 20% 88%;
+    --sidebar-accent-foreground: 15 25% 25%;
+    --sidebar-border: 30 20% 82%;
+    --sidebar-ring: 350 60% 28%;
+  }
+
+  .dark {
+    --background: 15 25% 10%;
+    --foreground: 35 20% 92%;
+
+    --card: 15 25% 12%;
+    --card-foreground: 35 20% 92%;
+
+    --popover: 15 25% 12%;
+    --popover-foreground: 35 20% 92%;
+
+    --primary: 350 55% 55%;
+    --primary-foreground: 15 25% 10%;
+
+    --secondary: 18 45% 50%;
+    --secondary-foreground: 15 25% 10%;
+
+    --muted: 15 20% 20%;
+    --muted-foreground: 35 15% 65%;
+
+    --accent: 38 55% 55%;
+    --accent-foreground: 15 25% 10%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 35 20% 92%;
+
+    --border: 15 20% 22%;
+    --input: 15 20% 22%;
+    --ring: 350 55% 55%;
+
+    --sidebar-background: 15 25% 10%;
+    --sidebar-foreground: 35 20% 92%;
+    --sidebar-primary: 350 55% 55%;
+    --sidebar-primary-foreground: 15 25% 10%;
+    --sidebar-accent: 15 20% 20%;
+    --sidebar-accent-foreground: 35 20% 92%;
+    --sidebar-border: 15 20% 22%;
+    --sidebar-ring: 350 55% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  .heritage-section {
+    @apply bg-gradient-to-b from-heritage-cream to-background py-16 md:py-24;
+  }
+
+  .heritage-card {
+    @apply bg-card rounded-xl shadow-card border border-border/50 overflow-hidden transition-all duration-300 hover:shadow-elevated hover:-translate-y-1;
+  }
+
+  .heritage-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary;
+  }
+
+  .heritage-badge-accent {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-accent/20 text-accent-foreground;
+  }
+
+  .heritage-gradient-text {
+    @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
+  }
+
+  .heritage-divider {
+    @apply h-px bg-gradient-to-r from-transparent via-border to-transparent;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
