@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 const Product = require("../models/Product");
 const Artisan = require("../models/Artisan");
+const { enrichProductsWithPricing } = require("../utils/priceCalculator");
 
 function mapArtisansCollectionDoc(doc) {
   const sid = String(doc._id);
@@ -114,7 +115,8 @@ exports.getArtisanById = async (req, res) => {
       return res.status(404).json({ error: "Not found" });
     }
 
-    const products = await Product.find({ seller: seller._id }).lean();
+    const productDocs = await Product.find({ seller: seller._id });
+    const products = await enrichProductsWithPricing(productDocs);
 
     const joinedYear = seller.createdAt
       ? new Date(seller.createdAt).getFullYear()

@@ -6,36 +6,8 @@ import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/common/ProductCard";
 import type { Artisan } from "@/data/artisans";
 import type { Product } from "@/data/products";
-
-const API = "http://localhost:5000";
-
-function mapMongoProductToCard(p: Record<string, unknown>, artisanId: string): Product {
-  const images = Array.isArray(p.images)
-    ? (p.images as { url?: string }[]).map((i) => i?.url).filter(Boolean)
-    : [];
-  const primary =
-    (typeof images[0] === "string" && images[0]) || "";
-
-  return {
-    id: String(p._id),
-    name: String(p.name || "Product"),
-    description: String(p.description || ""),
-    price: Number(p.price) || 0,
-    originalPrice:
-      p.originalPrice != null ? Number(p.originalPrice) : undefined,
-    image: primary,
-    images: images.length ? (images as string[]) : primary ? [primary] : [],
-    category: String(p.category || ""),
-    material: String(p.material || ""),
-    tags: Array.isArray(p.tags) ? (p.tags as string[]) : [],
-    artisanId,
-    inStock: p.inStock !== false && p.available !== false,
-    isReturnable: p.returnable === true,
-    rating: 0,
-    reviews: 0,
-    returnPolicy: "",
-  };
-}
+import { mapMongoDocToProduct } from "@/lib/mapMongoProduct";
+import { apiUrl } from "@/lib/apiBase";
 
 const ArtisanDetail = () => {
   const { id } = useParams();
@@ -54,7 +26,7 @@ const ArtisanDetail = () => {
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API}/api/artisans/${id}`);
+        const res = await fetch(apiUrl(`/api/artisans/${id}`));
         if (res.status === 404) {
           if (!cancelled) {
             setNotFound(true);
@@ -69,7 +41,7 @@ const ArtisanDetail = () => {
         const rawProducts = Array.isArray(data.products) ? data.products : [];
         setArtisanProducts(
           rawProducts.map((p: Record<string, unknown>) =>
-            mapMongoProductToCard(p, String(id))
+            mapMongoDocToProduct(p, { sellerId: String(id) })
           )
         );
         setNotFound(false);

@@ -44,6 +44,19 @@ import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
+import { normalizePaymentStatusForBadge } from "@/lib/orderPayment";
+
+function formatPaymentMethodLabel(method: unknown): string {
+  if (method == null || method === "") return "—";
+  const s = String(method).trim();
+  if (!s) return "—";
+  const lower = s.toLowerCase();
+  if (lower === "cash" || lower.includes("cash on")) return "Cash on Delivery";
+  if (lower === "upi") return "UPI";
+  if (lower === "cod") return "COD";
+  return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
+}
+
 const SellerOrders = () => {
   const [orders, setOrders] = useState<any[]>([]);
  const { user } = useAuth();
@@ -76,7 +89,11 @@ if (!sellerId) {
 
     totalAmount: order.totalPrice,
     status: order.orderStatus?.toLowerCase() || "pending",
-    paymentStatus: order.paymentStatus?.toLowerCase() || "pending",
+    paymentStatus: normalizePaymentStatusForBadge(order.paymentStatus),
+    paymentMethod: order.paymentMethod ?? "",
+    deliveryAddress: order.deliveryAddress ?? "",
+    phone: order.phone ?? "",
+    deliveryMethod: order.deliveryMethod ?? "",
     createdAt: order.createdAt,
 
     customerRequest:
@@ -120,6 +137,7 @@ const handleDispatch = async (orderId: string) => {
     console.error(err);
   }
 };
+
 const fetchOrders = async () => {
   try {
     const res = await axios.get(`http://localhost:5000/api/orders/seller/${sellerId}`);
@@ -140,6 +158,30 @@ useEffect(() => {
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [requestAction, setRequestAction] = useState<{ order: any; action: "approve" | "reject" } | null>(null);
   const { toast } = useToast();
+
+  const handleMarkDelivered = async (orderId: string) => {
+    try {
+      await axios.patch(`http://localhost:5000/api/orders/${orderId}/deliver`);
+      const res = await axios.get(`http://localhost:5000/api/orders/seller/${sellerId}`);
+      const next = transformOrders(res.data);
+      setOrders(next);
+      setSelectedOrder((prev) => {
+        if (!prev || prev.id !== orderId) return prev;
+        return next.find((o) => o.id === orderId) ?? prev;
+      });
+      toast({
+        title: "Order delivered",
+        description: "Status updated. COD orders are marked paid on delivery.",
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Error",
+        description: "Could not mark order as delivered.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Get orders with pending customer requests
   const ordersWithPendingRequests = orders.filter(
@@ -254,10 +296,7 @@ useEffect(() => {
         return (
           <Button
             size="sm"
-            onClick={async () => {
-  await axios.patch(`http://localhost:5000/api/orders/${order.id}/deliver`);
-  fetchOrders();
-}}
+            onClick={() => handleMarkDelivered(order.id)}
             className="gap-1"
           >
             <CheckCircle className="h-3 w-3" />
@@ -552,29 +591,55 @@ useEffect(() => {
                     <p className="text-sm text-muted-foreground">
                       {selectedOrder.customerEmail}
                     </p>
-                    {selectedOrder.customerPhone && (
-                      <p className="text-sm text-muted-foreground">
-                        {selectedOrder.customerPhone}
-                      </p>
-                    )}
                   </div>
-                  <div>
+                  <div className="space-y-3">
                     <h4 className="font-medium mb-2">Delivery Details</h4>
-                    <Badge variant="outline" className="mb-2">
-                      {selectedOrder.deliveryMethod === "self_pickup"
-                        ? "Self Pickup"
-                        : "Seller Delivery"}
-                    </Badge>
-                    {selectedOrder.openBoxDelivery && (
-                      <Badge variant="outline" className="ml-2 bg-blue-50">
-                        Open Box Delivery
+                    <div className="flex flex-wrap gap-2 mb-1">
+                      <Badge variant="outline">
+                        {selectedOrder.deliveryMethod === "self_pickup"
+                          ? "Self Pickup"
+                          : selectedOrder.deliveryMethod === "seller_delivery"
+                            ? "Seller Delivery"
+                            : selectedOrder.deliveryMethod
+                              ? String(selectedOrder.deliveryMethod).replace(/_/g, " ")
+                              : "Delivery"}
                       </Badge>
-                    )}
-                    {selectedOrder.shippingAddress && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {selectedOrder.shippingAddress}
-                      </p>
-                    )}
+                      {selectedOrder.openBoxDelivery && (
+                        <Badge variant="outline" className="bg-blue-50">
+                          Open Box Delivery
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Delivery address
+                        </p>
+                        <p className="text-foreground mt-0.5">
+                          {selectedOrder.deliveryAddress?.trim()
+                            ? selectedOrder.deliveryAddress
+                            : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Phone
+                        </p>
+                        <p className="text-foreground mt-0.5">
+                          {selectedOrder.phone?.trim()
+                            ? selectedOrder.phone
+                            : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Payment method
+                        </p>
+                        <p className="text-foreground mt-0.5">
+                          {formatPaymentMethodLabel(selectedOrder.paymentMethod)}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

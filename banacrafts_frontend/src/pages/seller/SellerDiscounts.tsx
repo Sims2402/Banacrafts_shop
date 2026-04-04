@@ -35,11 +35,12 @@ import { Discount} from "@/data/discounts";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { normalizeUserFromPayload } from "@/context/AuthContext";
+import { apiUrl, backendUrl } from "@/lib/apiBase";
 
 const SellerDiscounts = () => {
   const DISCOUNT_API_BASES = [
-    "http://localhost:5000/seller/discounts",
-    "http://localhost:5000/seller/discounts/seller/discounts",
+    backendUrl("/seller/discounts"),
+    backendUrl("/seller/discounts/seller/discounts"),
   ];
 
   const requestDiscountApi = async (
@@ -102,7 +103,7 @@ const SellerDiscounts = () => {
     }
 
     const res = await fetch(
-      `http://localhost:5000/api/products/seller/products/${sellerId}`
+      apiUrl(`/api/products/seller/products/${sellerId}`)
     );
 
     const data = await res.json();

@@ -1,6 +1,5 @@
 const Order = require("../models/Order");
-const Product = require("../models/Product");
-const User = require("../models/User");
+const { queueOrderStatusEmail } = require("../utils/orderStatusEmail");
 
 exports.createOrder = async (req, res) => {
   try {
@@ -9,7 +8,8 @@ exports.createOrder = async (req, res) => {
 
     await order.save();
 
-    res.status(201).json(order);
+    const plain = order.toObject ? order.toObject() : order;
+    res.status(201).json(plain);
 
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -35,10 +35,8 @@ exports.getSellerOrders = async (req, res) => {
 
         if (sellerItems.length === 0) return null;
 
-        return {
-          ...order._doc,
-          orderItems: sellerItems
-        };
+        const plain = order.toObject ? order.toObject() : { ...order._doc };
+        return { ...plain, orderItems: sellerItems };
       })
   .filter(order => order !== null);
 
@@ -56,7 +54,12 @@ exports.getOrderDetails = async (req, res) => {
       .populate("user", "-password")
       .populate("orderItems.product");
 
-    res.status(200).json(order);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    const plain = order.toObject ? order.toObject() : order;
+    res.status(200).json(plain);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -68,7 +71,11 @@ exports.confirmOrder = async (req, res) => {
       { orderStatus: "Confirmed" },
       { new: true }
     );
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
     res.json(order);
+    queueOrderStatusEmail(order._id, "Confirmed");
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -81,7 +88,11 @@ exports.dispatchOrder = async (req, res) => {
       { orderStatus: "Dispatched" },
       { new: true }
     );
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
     res.json(order);
+    queueOrderStatusEmail(order._id, "Dispatched");
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -93,13 +104,49 @@ exports.markOrderDelivered = async (req, res) => {
 
     const orderId = req.params.orderId;
 
+    const existing = await Order.findById(orderId);
+    if (!existing) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    const method = String(existing.paymentMethod ?? "").toLowerCase();
+    const isCodLike =
+      method.includes("cash") || method.includes("cod");
+
+    const updates = { orderStatus: "Delivered" };
+    if (isCodLike) {
+      updates.paymentStatus = "Paid";
+    }
+
+    console.log("[markOrderDelivered]", {
+      orderId,
+      paymentMethodRaw: existing.paymentMethod,
+      methodLower: method,
+      isCodLike,
+      updates,
+    });
+
     const order = await Order.findByIdAndUpdate(
       orderId,
-      { orderStatus: "Delivered" },
-      { new: true }
+      { $set: updates },
+      { new: true, runValidators: true }
     );
 
-    res.status(200).json(order);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found after update" });
+    }
+
+    console.log("[markOrderDelivered] saved", {
+      orderId,
+      orderStatus: order.orderStatus,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+    });
+
+    const plain = order.toObject ? order.toObject() : order;
+
+    res.status(200).json(plain);
+    queueOrderStatusEmail(order._id, "Delivered");
 
   } catch (error) {
 
@@ -125,7 +172,11 @@ exports.approveCancelRequest = async (req, res) => {
       { new: true }
     );
 
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
     res.status(200).json(order);
+    queueOrderStatusEmail(order._id, "Cancelled");
 
   } catch (error) {
 
@@ -150,7 +201,11 @@ exports.rejectCancelRequest = async (req, res) => {
       { new: true }
     );
 
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
     res.status(200).json(order);
+    queueOrderStatusEmail(order._id, "Cancel request declined");
 
   } catch (error) {
 
@@ -176,7 +231,11 @@ exports.approveExchangeRequest = async (req, res) => {
       { new: true }
     );
 
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
     res.status(200).json(order);
+    queueOrderStatusEmail(order._id, "Exchange approved");
 
   } catch (error) {
 
@@ -202,7 +261,11 @@ exports.rejectExchangeRequest = async (req, res) => {
       { new: true }
     );
 
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
     res.status(200).json(order);
+    queueOrderStatusEmail(order._id, "Exchange request declined");
 
   } catch (error) {
 

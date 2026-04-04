@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const upload = require("../middleware/upload");
-const Product = require("../models/Product"); 
+const Product = require("../models/Product");
+const { enrichProductsWithPricing } = require("../utils/priceCalculator");
 
 const {
   addProduct,
@@ -24,7 +25,8 @@ router.post("/:id/rate", submitProductRating);
 
 router.get("/", async (req, res) => {
   try {
-    const products = await Product.find();
+    const docs = await Product.find();
+    const products = await enrichProductsWithPricing(docs);
     res.json({ products });
   } catch (err) {
     res.status(500).json({ error: err.message });

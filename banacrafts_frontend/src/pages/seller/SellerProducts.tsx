@@ -33,6 +33,7 @@ import { Plus, Search, Edit, Trash2, Eye, RotateCcw, ImagePlus, Star } from "luc
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { normalizeUserFromPayload, useAuth } from "@/context/AuthContext";
+import { apiUrl } from "@/lib/apiBase";
 
 const SellerProducts = () => {
   const { user } = useAuth();
@@ -55,7 +56,7 @@ const fetchProducts = async () => {
     console.log("SELLER ID:", sellerId);
 
     const res = await fetch(
-      `http://localhost:5000/api/products/seller/products/${sellerId}`
+      apiUrl(`/api/products/seller/products/${sellerId}`)
     );
 
     const data = await res.json();
@@ -108,7 +109,7 @@ const fetchProducts = async () => {
   const handleDeleteProduct = async (productId: string) => {
   try {
     await fetch(
-      `http://localhost:5000/api/products/seller/products/${productId}`,
+      apiUrl(`/api/products/seller/products/${productId}`),
       {
         method: "DELETE",
       }
@@ -128,7 +129,7 @@ const fetchProducts = async () => {
 const handleToggleStock = async (productId, currentValue) => {
   try {
     await fetch(
-      `http://localhost:5000/api/products/seller/products/${productId}`,
+      apiUrl(`/api/products/seller/products/${productId}`),
       {
         method: "PUT",
         headers: {
@@ -209,7 +210,7 @@ if (originalPrice < 0) {
       sendData.append("image", fileInput.files[0]);
     }
 
-    const res = await fetch("http://localhost:5000/api/products/seller/products", {
+    const res = await fetch(apiUrl("/api/products/seller/products"), {
       method: "POST",
       body: sendData
     });
@@ -264,7 +265,7 @@ if (originalPrice < 0) {
   const handleToggleReturnable = async (productId, currentValue) => {
   try {
     const res = await fetch(
-      `http://localhost:5000/api/products/seller/products/${productId}`,
+      apiUrl(`/api/products/seller/products/${productId}`),
       {
         method: "PUT",
         headers: {
@@ -471,22 +472,32 @@ if (originalPrice < 0) {
                       </div>
                     </TableCell>
                     <TableCell>
-                        <div>
-                          <span className="font-medium">
-                            ₹{product.finalPrice !== undefined ? product.finalPrice : product.price}
-                          </span>
-
-                          {product.finalPrice && product.finalPrice < product.price && (
-                            <span className="text-sm text-muted-foreground line-through ml-2">
-                              ₹{product.price}
-                            </span>
-                          )}
-
-                          {product.originalPrice > 0 && (
-                            <span className="text-sm text-muted-foreground line-through ml-2">
-                              ₹{product.originalPrice}
-                            </span>
-                          )}
+                        <div className="flex flex-wrap items-center gap-x-2">
+                          {(() => {
+                            const list = Number(product.price);
+                            const final =
+                              product.finalPrice !== undefined
+                                ? Number(product.finalPrice)
+                                : list;
+                            const hasRuntimeDiscount = final < list;
+                            return (
+                              <>
+                                <span className="font-medium">₹{final}</span>
+                                {hasRuntimeDiscount && (
+                                  <span className="text-sm text-muted-foreground line-through">
+                                    ₹{list}
+                                  </span>
+                                )}
+                                {!hasRuntimeDiscount &&
+                                  product.originalPrice > 0 &&
+                                  product.originalPrice > list && (
+                                    <span className="text-sm text-muted-foreground line-through">
+                                      ₹{product.originalPrice}
+                                    </span>
+                                  )}
+                              </>
+                            );
+                          })()}
                         </div>
                       </TableCell>
                     <TableCell>
@@ -643,7 +654,7 @@ if (originalPrice < 0) {
   }
           try {
             await fetch(
-              `http://localhost:5000/api/products/seller/products/${editingProduct.id}`,
+              apiUrl(`/api/products/seller/products/${editingProduct.id}`),
               {
                 method: "PUT",
                 headers: {

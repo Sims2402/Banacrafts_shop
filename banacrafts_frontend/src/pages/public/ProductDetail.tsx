@@ -15,11 +15,10 @@ import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/common/ProductCard";
 import type { Product } from "@/data/products";
 import type { Artisan } from "@/data/artisans";
-import { mapMongoDocToProduct } from "@/lib/mapMongoProduct";
+import { formatDiscountBadge, mapMongoDocToProduct } from "@/lib/mapMongoProduct";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
-
-const API = "http://localhost:5000";
+import { apiUrl } from "@/lib/apiBase";
 
 type SellerShape = {
   _id: string;
@@ -53,7 +52,7 @@ const ProductDetail = () => {
       try {
         setLoading(true);
         setNotFound(false);
-        const res = await fetch(`${API}/api/products/${id}`);
+        const res = await fetch(apiUrl(`/api/products/${id}`));
         if (res.status === 404) {
           if (!cancelled) {
             setNotFound(true);
@@ -103,7 +102,7 @@ const ProductDetail = () => {
           setArtisan(null);
         }
 
-        const listRes = await fetch(`${API}/api/products`);
+        const listRes = await fetch(apiUrl("/api/products"));
         if (listRes.ok && !cancelled) {
           const json = await listRes.json();
           const raw = Array.isArray(json?.products) ? json.products : [];
@@ -163,18 +162,15 @@ const ProductDetail = () => {
 
   const inWishlist = isInWishlist(product.id);
 
-  const discount = product.originalPrice
-    ? Math.round(
-        ((product.originalPrice - product.price) / product.originalPrice) * 100
-      )
-    : 0;
+  const showListStrikethrough =
+    product.originalPrice != null && product.originalPrice > product.price;
 
   const submitRating = async (value: number) => {
     if (!user?.id || !id) return;
     setRatingError("");
     setRatingBusy(true);
     try {
-      const res = await fetch(`${API}/api/products/${id}/rate`, {
+      const res = await fetch(apiUrl(`/api/products/${id}/rate`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.id, value }),
@@ -227,11 +223,11 @@ const ProductDetail = () => {
                   No image
                 </div>
               )}
-              {discount > 0 && (
+              {product.discount ? (
                 <span className="absolute left-4 top-4 px-3 py-1 bg-secondary text-secondary-foreground text-sm font-semibold rounded-lg">
-                  {discount}% OFF
+                  {formatDiscountBadge(product.discount)}
                 </span>
-              )}
+              ) : null}
             </div>
 
             <div className="space-y-6">
@@ -259,7 +255,7 @@ const ProductDetail = () => {
                 </div>
                 <span className="text-sm text-muted-foreground">
                   {product.rating > 0 ? product.rating.toFixed(1) : "—"} ·{" "}
-                  {product.numRatings} rating{product.numRatings === 1 ? "" : "s"}
+                  {product.reviews} rating{product.reviews === 1 ? "" : "s"}
                 </span>
               </div>
 
@@ -300,13 +296,13 @@ const ProductDetail = () => {
                 </p>
               ) : null}
 
-              <div className="flex items-baseline gap-3">
+              <div className="flex items-baseline gap-3 flex-wrap">
                 <span className="font-heading text-4xl font-bold text-primary">
                   ₹{product.price.toLocaleString()}
                 </span>
-                {product.originalPrice != null && product.originalPrice > 0 && (
+                {showListStrikethrough && (
                   <span className="text-xl text-muted-foreground line-through">
-                    ₹{product.originalPrice.toLocaleString()}
+                    ₹{product.originalPrice!.toLocaleString()}
                   </span>
                 )}
               </div>

@@ -3,12 +3,23 @@ import embroideredClutch from "@/assets/products/embroidered-clutch.jpg";
 import blockPrintDupatta from "@/assets/products/block-print-dupatta.jpg";
 import brassDiya from "@/assets/products/brass-diya.jpg";
 
+/** Runtime discount from API (not persisted on the product document). */
+export type ProductDiscount = {
+  code: string;
+  type: "percentage" | "fixed";
+  value: number;
+};
+
 export interface Product {
   id: string;
   name: string;
   description: string;
+  /** Selling price (matches API `finalPrice` when present). */
   price: number;
+  /** List / compare-at price for strikethrough (API list price or DB MSRP). */
   originalPrice?: number;
+  /** Active coupon-style discount metadata when API applies a runtime discount. */
+  discount?: ProductDiscount | null;
   image: string;
   images: string[];
   category: string;

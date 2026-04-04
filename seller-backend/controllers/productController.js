@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Product = require("../models/Product");
-const { getFinalPrice } = require("../utils/priceCalculator");
+const { enrichProductObject, enrichProductsWithPricing } = require("../utils/priceCalculator");
 
 exports.getProductById = async (req, res) => {
   try {
@@ -18,9 +18,8 @@ exports.getProductById = async (req, res) => {
       return res.status(404).json({ error: "Not found" });
     }
 
-    const finalPrice = await getFinalPrice(productDoc._id);
-    const obj = productDoc.toObject();
-    res.status(200).json({ ...obj, finalPrice });
+    const payload = await enrichProductObject(productDoc);
+    res.status(200).json(payload);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -77,19 +76,7 @@ exports.getSellerProducts = async (req, res) => {
     const sellerId = req.params.sellerId;
 
     const products = await Product.find({ seller: sellerId });
-
-    const updatedProducts = await Promise.all(
-      products.map(async (p) => {
-        const finalPrice = await getFinalPrice(p._id);
-
-        console.log("PRODUCT:", p.name, "PRICE:", p.price, "FINAL:", finalPrice); //  DEBUG
-
-        return {
-          ...p.toObject(),
-          finalPrice,
-        };
-      })
-    );
+    const updatedProducts = await enrichProductsWithPricing(products);
 
     res.status(200).json(updatedProducts);
 
@@ -189,9 +176,8 @@ exports.submitProductRating = async (req, res) => {
       "seller",
       "name profilePicture role"
     );
-    const finalPrice = await getFinalPrice(productDoc._id);
-    const obj = productDoc.toObject();
-    res.status(200).json({ ...obj, finalPrice });
+    const payload = await enrichProductObject(productDoc);
+    res.status(200).json(payload);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

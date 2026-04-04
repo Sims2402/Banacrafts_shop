@@ -28,6 +28,7 @@ import {
   Star,
 } from "lucide-react";
 import { normalizeUserFromPayload, useAuth } from "@/context/AuthContext";
+import { normalizePaymentStatusForBadge } from "@/lib/orderPayment";
 
 const API = "http://localhost:5000";
 
@@ -66,9 +67,9 @@ const transformSellerOrders = (orders: unknown): DashboardOrder[] => {
     status: String(
       (order as { orderStatus?: string }).orderStatus || "pending"
     ).toLowerCase(),
-    paymentStatus: String(
-      (order as { paymentStatus?: string }).paymentStatus || "pending"
-    ).toLowerCase(),
+    paymentStatus: normalizePaymentStatusForBadge(
+      (order as { paymentStatus?: string }).paymentStatus
+    ),
     createdAt: String((order as { createdAt?: string }).createdAt || ""),
     customerRequest: (order as { cancelRequested?: boolean }).cancelRequested
       ? {

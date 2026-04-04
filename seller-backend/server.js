@@ -12,6 +12,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// So browsers (and DevTools) always show a fresh JSON body for APIs — avoids empty 304 bodies.
+app.use("/api", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  next();
+});
+
 // connect database
 connectDB();
 

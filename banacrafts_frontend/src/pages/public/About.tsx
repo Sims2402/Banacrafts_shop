@@ -7,8 +7,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { fetchJsonArray } from "@/lib/fetchJsonArray";
 import { normalizeArtisansList } from "@/lib/normalizeArtisan";
-
-const API = "http://localhost:5000";
+import { apiUrl } from "@/lib/apiBase";
 
 const About = () => {
   const [artisans, setArtisans] = useState<Artisan[]>([]);
@@ -21,8 +20,8 @@ const About = () => {
       try {
         setLoading(true);
         const [artisanRaw, pRes] = await Promise.all([
-          fetchJsonArray(`${API}/api/artisans`).catch(() => []),
-          fetch(`${API}/api/products`),
+          fetchJsonArray(apiUrl("/api/artisans")).catch(() => []),
+          fetch(apiUrl("/api/products")),
         ]);
         if (!cancelled) setArtisans(normalizeArtisansList(artisanRaw));
 

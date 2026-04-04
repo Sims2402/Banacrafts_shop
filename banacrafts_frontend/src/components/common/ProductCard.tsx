@@ -4,6 +4,7 @@ import { Heart, ShoppingCart, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Product } from "@/data/products";
 import { useCart } from "@/context/CartContext";
+import { formatDiscountBadge } from "@/lib/mapMongoProduct";
 import { cn } from "@/lib/utils";
 
 interface ProductCardProps {
@@ -29,9 +30,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, className }) => {
     addToCart(product);
   };
 
-  const discount = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-    : 0;
+  const showStrikethrough =
+    product.originalPrice != null && product.originalPrice > product.price;
 
   return (
     <Link to={`/products/${product.id}`} className={cn("block group", className)}>
@@ -46,11 +46,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, className }) => {
           
           {/* Badges */}
           <div className="absolute left-3 top-3 flex flex-col gap-2">
-            {discount > 0 && (
+            {product.discount ? (
               <span className="px-2 py-1 bg-secondary text-secondary-foreground text-xs font-semibold rounded">
-                {discount}% OFF
+                {formatDiscountBadge(product.discount)}
               </span>
-            )}
+            ) : null}
             {product.tags.includes("Limited Edition") && (
               <span className="px-2 py-1 bg-accent text-accent-foreground text-xs font-semibold rounded">
                 Limited Edition
@@ -108,9 +108,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, className }) => {
             <span className="font-heading text-lg font-bold text-primary">
               ₹{product.price.toLocaleString()}
             </span>
-            {product.originalPrice && (
+            {showStrikethrough && (
               <span className="text-sm text-muted-foreground line-through">
-                ₹{product.originalPrice.toLocaleString()}
+                ₹{product.originalPrice!.toLocaleString()}
               </span>
             )}
           </div>

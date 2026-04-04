@@ -16,8 +16,7 @@ import {
   type AwarenessArticleClient,
 } from "@/lib/normalizeAwareness";
 import heroBanner from "@/assets/hero-banner.jpg";
-
-const API = "http://localhost:5000";
+import { apiUrl } from "@/lib/apiBase";
 
 const Index = () => {
   const [featuredArtisans, setFeaturedArtisans] = useState<Artisan[]>([]);
@@ -34,7 +33,7 @@ const Index = () => {
     (async () => {
       try {
         setLoadingArtisans(true);
-        const raw = await fetchJsonArray(`${API}/api/artisans`).catch(() => []);
+        const raw = await fetchJsonArray(apiUrl("/api/artisans")).catch(() => []);
         if (!cancelled) {
           setFeaturedArtisans(normalizeArtisansList(raw).slice(0, 3));
         }
@@ -54,7 +53,7 @@ const Index = () => {
     (async () => {
       try {
         setLoadingAwareness(true);
-        const raw = await fetchJsonArray(`${API}/api/awareness`).catch(() => []);
+        const raw = await fetchJsonArray(apiUrl("/api/awareness")).catch(() => []);
         if (!cancelled) {
           setAwarenessPreview(normalizeAwarenessList(raw).slice(0, 3));
         }
@@ -74,7 +73,7 @@ const Index = () => {
     (async () => {
       try {
         setLoadingProducts(true);
-        const res = await fetch(`${API}/api/products`);
+        const res = await fetch(apiUrl("/api/products"));
         if (!res.ok) throw new Error("products");
         const json = await res.json();
         const raw = Array.isArray(json?.products) ? json.products : [];
