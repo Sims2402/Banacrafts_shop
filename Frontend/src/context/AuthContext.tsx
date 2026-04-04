@@ -1,127 +1,170 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import axios from "axios";
 
+/* ---------------- TYPES ---------------- */
 export type UserRole = "customer" | "seller" | "admin" | null;
 
-interface User {
+export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
   token: string;
-  avatar?: string | null;  // ✅ profile photo
-  phone?: string;          // ✅ phone number
-  address?: string;        // ✅ address
+  avatar?: string | null;
+  phone?: string;
+  address?: string;
 }
 
+/* ---------------- NORMALIZER ---------------- */
+export const normalizeUserFromPayload = (payload: any): User | null => {
+  if (!payload) return null;
+
+  const user = payload?.user ? payload.user : payload;
+  const token = payload?.token || user?.token || "";
+
+  return {
+    id: user?._id || user?.id || "",
+    name: user?.name || "",
+    email: user?.email || "",
+    role: user?.role || null,
+    token,
+    avatar: user?.avatar || user?.profilePicture || null,
+    phone: user?.phone || "",
+    address: user?.address || "",
+  };
+};
+
+/* ---------------- CONTEXT ---------------- */
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string, role: UserRole) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<User>;
+  register: (name: string, email: string, password: string, role: UserRole) => Promise<User>;
   logout: () => void;
-  setUser: React.Dispatch<React.SetStateAction<User | null>>;  // ✅ so ProfileEdit can update navbar instantly
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
+  updateUser: (data: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/* ---------------- PROVIDER ---------------- */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-
   const [user, setUser] = useState<User | null>(null);
 
-  /* 🔥 CHECK TOKEN ON REFRESH */
+  /* 🔥 Restore session */
   useEffect(() => {
-    const checkUser = async () => {
+    const stored = localStorage.getItem("banacrafts_user");
+    if (!stored) return;
 
-      const storedUser = localStorage.getItem("banacrafts_user");
-      if (!storedUser) return;
+    try {
+      const parsed = JSON.parse(stored);
+      const token = parsed?.token || parsed?.user?.token || "";
+      if (!token) throw new Error("No token available");
 
-      try {
+      fetch("http://localhost:5000/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error();
+          return res.json();
+        })
+        .then((data) => {
+          const normalized = normalizeUserFromPayload({
+            ...data,
+            token,
+          });
 
-        const parsedUser = JSON.parse(storedUser);
-
-        const res = await fetch("http://localhost:5000/api/auth/me", {
-          headers: {
-            Authorization: `Bearer ${parsedUser.token}`
+          if (normalized) {
+            setUser(normalized);
+            localStorage.setItem("banacrafts_user", JSON.stringify({
+              user: {
+                _id: normalized.id,
+                name: normalized.name,
+                email: normalized.email,
+                role: normalized.role,
+              },
+              token: normalized.token,
+            }));
           }
-        });
-
-        if (!res.ok) {
+        })
+        .catch(() => {
           localStorage.removeItem("banacrafts_user");
           setUser(null);
-          return;
-        }
-
-        const data = await res.json();
-
-        // ✅ avatar, phone, address now included when restoring session
-        setUser({
-          id:      data._id,
-          name:    data.name,
-          email:   data.email,
-          role:    data.role,
-          token:   parsedUser.token,
-          avatar:  data.avatar  || null,
-          phone:   data.phone   || "",
-          address: data.address || "",
         });
-
-      } catch (err) {
-        localStorage.removeItem("banacrafts_user");
-        setUser(null);
-      }
-    };
-
-    checkUser();
+    } catch {
+      localStorage.removeItem("banacrafts_user");
+      setUser(null);
+    }
   }, []);
 
-  /* LOGIN */
+  /* ---------------- LOGIN ---------------- */
   const login = async (
+    email: string,
+    password: string
+  ): Promise<User> => {
+    const res = await axios.post("http://localhost:5000/api/auth/login", {
+      email,
+      password,
+    });
+
+    const data = res.data;
+    const normalized = normalizeUserFromPayload(data);
+
+    if (!normalized) throw new Error("Invalid user data");
+
+    setUser(normalized);
+    localStorage.setItem("banacrafts_user", JSON.stringify(data));
+
+    return normalized;
+  };
+
+  const register = async (
+    name: string,
     email: string,
     password: string,
     role: UserRole
-  ): Promise<boolean> => {
+  ): Promise<User> => {
+    const res = await axios.post("http://localhost:5000/api/auth/register", {
+      name,
+      email,
+      password,
+      role,
+    });
 
-    try {
-      const res = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, role }),
-      });
+    const data = res.data;
+    const normalized = normalizeUserFromPayload(data);
 
-      if (!res.ok) {
-        const err = await res.json();
-        const error: any = new Error(err.message || "Login failed");
-        error.response = { status: res.status };
-        throw error;
-      }
+    if (!normalized) throw new Error("Invalid user data");
 
-      const data = await res.json();
+    setUser(normalized);
+    localStorage.setItem("banacrafts_user", JSON.stringify(data));
 
-      const loggedInUser: User = {
-        id:      data._id,
-        name:    data.name,
-        email:   data.email,
-        role:    data.role,
-        token:   data.token,
-        avatar:  data.avatar  || null,  // ✅
-        phone:   data.phone   || "",    // ✅
-        address: data.address || "",    // ✅
-      };
-
-      setUser(loggedInUser);
-      localStorage.setItem("banacrafts_user", JSON.stringify(loggedInUser));
-
-      return true;
-
-    } catch (error) {
-      console.error("Login failed", error);
-      throw error;
-    }
+    return normalized;
   };
 
-  /* LOGOUT */
+  /* ---------------- LOGOUT ---------------- */
   const logout = () => {
     setUser(null);
     localStorage.removeItem("banacrafts_user");
+  };
+
+  /* ---------------- UPDATE USER ---------------- */
+  const updateUser = (data: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+
+      const updated = { ...prev, ...data };
+      localStorage.setItem("banacrafts_user", JSON.stringify(updated));
+      return updated;
+    });
   };
 
   return (
@@ -130,8 +173,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         isAuthenticated: !!user,
         login,
+        register,
         logout,
-        setUser,  // ✅ exposed so ProfileEdit.tsx can update name/avatar in real time
+        setUser,
+        updateUser,
       }}
     >
       {children}
@@ -139,10 +184,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+/* ---------------- HOOK ---------------- */
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
 };

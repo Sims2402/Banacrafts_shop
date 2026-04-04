@@ -3,46 +3,81 @@ import {
   Line,
   XAxis,
   YAxis,
+  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid
+  Area,
+  AreaChart,
 } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface Props {
-  title: string;
-  data: {
-    month: string;
-    revenue: number;
-  }[];
+interface RevenueChartProps {
+  title?: string;
+  data: { name: string; revenue: number; orders?: number }[];
 }
 
-const RevenueChart = ({ title, data }: Props) => {
+const RevenueChart = ({ title = "Revenue Trends", data }: RevenueChartProps) => {
+  const hasPoints = Array.isArray(data) && data.length > 0;
+
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm">
-      <h2 className="text-lg font-semibold mb-4">{title}</h2>
-
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          
-          {/* ✅ FULL MONTH + YEAR SHOWN */}
-          <XAxis dataKey="month" />
-
-          <YAxis />
-
-          <Tooltip
-            formatter={(value: number) => [`₹${value}`, "Revenue"]}
-          />
-
-          <Line
-            type="monotone"
-            dataKey="revenue"
-            stroke="#7f1d1d"
-            strokeWidth={3}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+    <Card className="heritage-card">
+      <CardHeader>
+        <CardTitle className="text-lg font-display">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {!hasPoints ? (
+          <div className="h-[300px] flex flex-col items-center justify-center text-center px-4">
+            <p className="text-sm text-muted-foreground">
+              No revenue data for this period yet.
+            </p>
+          </div>
+        ) : (
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data}>
+              <defs>
+                <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
+                className="fill-muted-foreground"
+              />
+              <YAxis
+                tick={{ fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                className="fill-muted-foreground"
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                }}
+                formatter={(value: number) => [`₹${value.toLocaleString()}`, "Revenue"]}
+              />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                fill="url(#revenueGradient)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

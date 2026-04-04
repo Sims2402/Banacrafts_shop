@@ -4,7 +4,6 @@ import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth, UserRole } from "@/context/AuthContext";
 import logo from "@/assets/logo.png";
 
@@ -15,10 +14,10 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [role, setRole] = useState<UserRole>("customer");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const role: UserRole = "seller";
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -35,22 +34,9 @@ const Register = () => {
 
     try {
       await register(name, email, password, role);
-      
-      switch (role) {
-        case "admin":
-          navigate("/admin/dashboard");
-          break;
-        case "seller":
-          navigate("/seller/dashboard");
-          break;
-        case "customer":
-          navigate("/customer/dashboard");
-          break;
-        default:
-          navigate("/");
-      }
-    } catch (err) {
-      setError("Registration failed. Please try again.");
+      navigate("/seller/dashboard");
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -62,11 +48,10 @@ const Register = () => {
       <div className="hidden lg:flex lg:flex-1 bg-secondary items-center justify-center p-12">
         <div className="max-w-md text-center text-secondary-foreground">
           <h2 className="font-heading text-4xl font-bold mb-6">
-            Join Our Artisan Community
+            Start Selling on BanaCrafts
           </h2>
           <p className="text-secondary-foreground/80 leading-relaxed">
-            Whether you're a customer looking for unique handcrafted items or a
-            seller wanting to showcase your craft, we welcome you to BanaCrafts.
+            Promote your handmade products and grow your craft business with our seller-first marketplace.
           </p>
         </div>
       </div>
@@ -88,7 +73,7 @@ const Register = () => {
             Create Account
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Start your journey with BanaCrafts
+            Start your seller journey with BanaCrafts
           </p>
         </div>
 
@@ -173,32 +158,11 @@ const Register = () => {
             </div>
 
             <div>
-              <Label className="mb-3 block">Register As</Label>
-              <RadioGroup
-                value={role || "customer"}
-                onValueChange={(value) => setRole(value as UserRole)}
-                className="grid grid-cols-2 gap-4"
-              >
-                {[
-                  { value: "customer", label: "Customer", desc: "Shop handcrafted items" },
-                  { value: "seller", label: "Seller", desc: "Sell your crafts" },
-                ].map((option) => (
-                  <div key={option.value}>
-                    <RadioGroupItem
-                      value={option.value}
-                      id={`reg-${option.value}`}
-                      className="peer sr-only"
-                    />
-                    <Label
-                      htmlFor={`reg-${option.value}`}
-                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors"
-                    >
-                      <span className="text-sm font-semibold">{option.label}</span>
-                      <span className="text-xs text-muted-foreground mt-1">{option.desc}</span>
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
+              <Label className="mb-3 block">Account Type</Label>
+              <div className="rounded-lg border border-muted bg-popover p-4">
+                <p className="text-sm font-semibold">Seller</p>
+                <p className="text-xs text-muted-foreground mt-1">Sell your crafts</p>
+              </div>
             </div>
 
             <Button type="submit" variant="heritage" size="lg" className="w-full" disabled={loading}>

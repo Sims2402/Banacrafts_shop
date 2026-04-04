@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import StatsCard from "@/components/common/StatsCard";
@@ -8,262 +7,189 @@ import PaymentStatusBadge from "@/components/common/PaymentStatusBadge";
 import RevenueChart from "@/components/charts/RevenueChart";
 import OrdersChart from "@/components/charts/OrdersChart";
 import TopProductsChart from "@/components/charts/TopProductsChart";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Package,
-  ShoppingBag,
-  IndianRupee,
-  TrendingUp,
-  Star,
-  Clock,
-  Eye,
-} from "lucide-react";
-import { mockOrders, getOrdersBySeller, getTotalRevenue } from "@/data/orders";
-import { products } from "@/data/products";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { IndianRupee, ShoppingBag, Package, Star } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
-// Mock chart data for seller
-const revenueData = [
-  { name: "Week 1", revenue: 12000 },
-  { name: "Week 2", revenue: 18500 },
-  { name: "Week 3", revenue: 14200 },
-  { name: "Week 4", revenue: 22000 },
-];
-
-const ordersData = [
-  { name: "Mon", orders: 4 },
-  { name: "Tue", orders: 6 },
-  { name: "Wed", orders: 3 },
-  { name: "Thu", orders: 8 },
-  { name: "Fri", orders: 5 },
-  { name: "Sat", orders: 9 },
-  { name: "Sun", orders: 7 },
-];
-
-const topProductsData = [
-  { name: "Silk Saree", value: 12 },
-  { name: "Clutch Bag", value: 8 },
-  { name: "Block Print Dupatta", value: 6 },
-  { name: "Brass Diya", value: 5 },
-];
+const API = "http://localhost:5000/api";
 
 const SellerDashboard = () => {
   const { user } = useAuth();
-  const [sellerOrders] = useState(() => getOrdersBySeller(mockOrders, "seller1"));
-  
-  const totalRevenue = getTotalRevenue(sellerOrders);
-  const pendingOrders = sellerOrders.filter(o => o.status === "pending").length;
-  const totalProducts = products.length;
-  const avgRating = 4.5;
 
-  const recentOrders = sellerOrders.slice(0, 5);
+  const [stats, setStats] = useState<any>(null);
+  const [revenue, setRevenue] = useState<any[]>([]);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token =
+      user?.token ??
+      JSON.parse(localStorage.getItem("banacrafts_user") || "{}").token ??
+      "";
+
+    if (!token) {
+      setError("Session expired. Please log in again.");
+      setLoading(false);
+      return;
+    }
+
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const [ordersRes, productsRes] = await Promise.all([
+          fetch(`${API}/orders/seller`, { headers }),
+          fetch(`${API}/products/seller/me`, { headers }),
+        ]);
+
+        if (!ordersRes.ok) throw new Error("Failed to fetch orders");
+        if (!productsRes.ok) throw new Error("Failed to fetch products");
+
+        const ordersData = await ordersRes.json();
+        const productsData = await productsRes.json();
+
+        /* ✅ FIX: CALCULATE RATING */
+        const avgRating =
+          productsData.reduce((sum: number, p: any) => sum + (p.rating || 0), 0) /
+          (productsData.length || 1);
+
+        /* STATS */
+        setStats({
+          totalRevenue: ordersData.reduce(
+            (sum: number, o: any) => sum + (o.totalPrice || 0),
+            0
+          ),
+          totalOrders: ordersData.length,
+          totalProducts: productsData.length,
+          avgRating: avgRating.toFixed(1),
+        });
+
+        /* ORDERS */
+        setOrders(ordersData);
+
+        /* REVENUE */
+        const revenueMap: Record<string, number> = {};
+        ordersData.forEach((o: any) => {
+          const month = new Date(o.createdAt).toLocaleString("default", {
+            month: "short",
+          });
+          revenueMap[month] =
+            (revenueMap[month] || 0) + (o.totalPrice || 0);
+        });
+
+        setRevenue(
+          Object.entries(revenueMap).map(([name, revenue]) => ({
+            name,
+            revenue,
+          }))
+        );
+
+        /* TOP PRODUCTS */
+        console.log("ORDERS:", ordersData);
+        
+        const productMap: Record<string, number> = {};
+        ordersData.forEach((order: any) => {
+          if (!order.orderItems) return;
+
+          order.orderItems.forEach((item: any) => {
+            const name = item.name || item.product?.name || "Unknown";
+            const qty = item.qty || item.quantity || 0;
+
+            productMap[name] = (productMap[name] || 0) + qty;
+          });
+        });
+
+        const topProductsData = Object.entries(productMap).map(([name, value]) => ({
+          name,
+          value,
+        }));
+
+        console.log("TOP PRODUCTS:", topProductsData);
+        setTopProducts(topProductsData);
+      } catch (err: any) {
+        console.error("Dashboard error:", err);
+        setError(err.message || "Failed to load dashboard.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
+
+  const recentOrders = orders.slice(0, 5);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col">
       <Navbar />
-      
+
       <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-display font-bold text-foreground">
-            Seller Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Welcome back, {user?.name || "Seller"}! Here's your store overview.
-          </p>
-        </div>
+        <h1 className="text-3xl font-bold mb-6">Seller Dashboard</h1>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Total Revenue"
-            value={`₹${totalRevenue.toLocaleString()}`}
-            icon={<IndianRupee className="h-4 w-4" />}
-            trend={{ value: 12, isPositive: true }}
-            description="vs last month"
-          />
-          <StatsCard
-            title="Total Orders"
-            value={sellerOrders.length}
-            icon={<ShoppingBag className="h-4 w-4" />}
-            trend={{ value: 8, isPositive: true }}
-            description="vs last month"
-          />
-          <StatsCard
-            title="Active Products"
-            value={totalProducts}
-            icon={<Package className="h-4 w-4" />}
-            description="Listed on store"
-          />
-          <StatsCard
-            title="Average Rating"
-            value={avgRating}
-            icon={<Star className="h-4 w-4" />}
-            description="Based on 48 reviews"
-          />
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Link to="/seller/products">
-            <Button variant="outline" className="w-full justify-start gap-2 h-auto py-4">
-              <Package className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">Manage Products</div>
-                <div className="text-xs text-muted-foreground">Add or edit listings</div>
-              </div>
-            </Button>
-          </Link>
-          <Link to="/seller/orders">
-            <Button variant="outline" className="w-full justify-start gap-2 h-auto py-4">
-              <ShoppingBag className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">View Orders</div>
-                <div className="text-xs text-muted-foreground">{pendingOrders} pending</div>
-              </div>
-            </Button>
-          </Link>
-          <Link to="/seller/discounts">
-            <Button variant="outline" className="w-full justify-start gap-2 h-auto py-4">
-              <TrendingUp className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">Discounts</div>
-                <div className="text-xs text-muted-foreground">Create offers</div>
-              </div>
-            </Button>
-          </Link>
-          <Link to="/seller/reviews">
-            <Button variant="outline" className="w-full justify-start gap-2 h-auto py-4">
-              <Star className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">Reviews</div>
-                <div className="text-xs text-muted-foreground">Customer feedback</div>
-              </div>
-            </Button>
-          </Link>
-        </div>
-
-        {/* Customer Service Section */}
-        <Card className="heritage-card mb-8">
-          <CardHeader>
-            <CardTitle className="text-lg font-display">Customer Service</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Link to="/support/track-order">
-                <Button variant="ghost" className="w-full h-auto py-4 flex flex-col gap-2">
-                  <Package className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Track Order</span>
-                </Button>
-              </Link>
-              <Link to="/support/returns-refunds">
-                <Button variant="ghost" className="w-full h-auto py-4 flex flex-col gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Returns & Refunds</span>
-                </Button>
-              </Link>
-              <Link to="/support/shipping-info">
-                <Button variant="ghost" className="w-full h-auto py-4 flex flex-col gap-2">
-                  <ShoppingBag className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Shipping Info</span>
-                </Button>
-              </Link>
-              <Link to="/support/faqs">
-                <Button variant="ghost" className="w-full h-auto py-4 flex flex-col gap-2">
-                  <Star className="h-5 w-5 text-primary" />
-                  <span className="text-sm">FAQs</span>
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Analytics Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2">
-            <RevenueChart title="Weekly Revenue" data={revenueData} />
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700">
+            {error}
           </div>
-          <TopProductsChart title="Top Selling Products" data={topProductsData} />
-        </div>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <OrdersChart title="Daily Orders" data={ordersData} />
-          
-          <Card className="heritage-card">
-            <CardHeader>
-              <CardTitle className="text-lg font-display flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Pending Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-                <div className="font-medium text-yellow-800">2 Orders Pending</div>
-                <p className="text-sm text-yellow-700">Awaiting confirmation</p>
-              </div>
-              <div className="p-3 rounded-lg bg-orange-50 border border-orange-200">
-                <div className="font-medium text-orange-800">1 Payment Pending</div>
-                <p className="text-sm text-orange-700">Cash on delivery</p>
-              </div>
-              <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                <div className="font-medium text-blue-800">3 New Reviews</div>
-                <p className="text-sm text-blue-700">Respond to customers</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {loading ? (
+          <p>Loading dashboard...</p>
+        ) : (
+          <>
+            {/* ✅ FIXED STATS */}
+            <div className="grid md:grid-cols-4 gap-6 mb-8">
+              <StatsCard title="Revenue" value={`₹${stats?.totalRevenue ?? 0}`} icon={<IndianRupee />} />
+              <StatsCard title="Orders" value={stats?.totalOrders ?? 0} icon={<ShoppingBag />} />
+              <StatsCard title="Products" value={stats?.totalProducts ?? 0} icon={<Package />} />
+              <StatsCard title="Rating" value={stats?.avgRating ?? "0"} icon={<Star />} />
+            </div>
 
-        {/* Recent Orders */}
-        <Card className="heritage-card">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-display">Recent Orders</CardTitle>
-            <Link to="/seller/orders">
-              <Button variant="ghost" size="sm">View All</Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.id}</TableCell>
-                    <TableCell>{order.customerName}</TableCell>
-                    <TableCell>₹{order.totalAmount.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <OrderStatusBadge status={order.status} />
-                    </TableCell>
-                    <TableCell>
-                      <PaymentStatusBadge status={order.paymentStatus} />
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+            {/* CHARTS */}
+            <div className="grid lg:grid-cols-3 gap-6 mb-8">
+              <div className="lg:col-span-2">
+                <RevenueChart title="Revenue" data={revenue} />
+              </div>
+              <TopProductsChart title="Top Products" data={topProducts} />
+            </div>
+
+            {/* RECENT ORDERS */}
+            <Card className="mt-8">
+              <CardHeader>
+                <CardTitle>Recent Orders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {recentOrders.length === 0 ? (
+                  <p>No orders yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {recentOrders.map((o: any) => (
+                        <TableRow key={o._id}>
+                          <TableCell>{o._id.slice(-6)}</TableCell>
+                          <TableCell>{o.user?.name || "Unknown"}</TableCell>
+                          <TableCell>₹{o.totalPrice}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
       </main>
 
       <Footer />

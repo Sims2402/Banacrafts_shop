@@ -1,8 +1,38 @@
 import express from "express";
+import {
+  updateProfile,
+  changePassword,
+  registerUser,
+  loginUser,
+  sendPasswordResetOtp,
+  verifyPasswordResetOtp,
+  resetPasswordWithToken,
+  uploadProfilePicture
+} from "../controllers/user.controller.js";
+
 import { protect } from "../middleware/authMiddleware.js";
-import { updateProfile, changePassword } from "../controllers/user.controller.js";
+import upload from "../middleware/upload.middleware.js"; // reuse same multer
 
 const router = express.Router();
-router.put("/profile",         protect, updateProfile);
+
+// ================= AUTH =================
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+
+router.post("/forgot-password", sendPasswordResetOtp);
+router.post("/verify-otp", verifyPasswordResetOtp);
+router.post("/reset-password", resetPasswordWithToken);
+
+// ================= PROFILE =================
+router.put("/profile", protect, updateProfile);
 router.put("/change-password", protect, changePassword);
+
+// ================= PROFILE IMAGE =================
+router.post(
+  "/profile/upload",
+  protect,
+  upload.single("image"),
+  uploadProfilePicture
+);
+
 export default router;

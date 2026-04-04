@@ -166,7 +166,7 @@ router.get(
     }
   }
 );
-
+router.get("/dashboard", protect, authorizeRoles("admin"), getDashboardData);
 router.post(
   "/artisans",
   protect,

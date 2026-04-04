@@ -65,14 +65,70 @@ const AdminDashboard = () => {
 
   const getDashboard = async () => {
     try {
+      // DEBUG: Check token
+      const storedUser = localStorage.getItem("banacrafts_user");
+      const token = storedUser ? JSON.parse(storedUser).token : null;
+      console.log("TOKEN FROM STORAGE:", token ? "✓ Found" : "✗ Missing");
+      console.log("USER DATA:", storedUser ? JSON.parse(storedUser) : "✗ No user");
+
       const data = await fetchWithAuth("/admin/dashboard");
+      console.log("ADMIN DASHBOARD DATA:", data);
+
+      const ordersData = data.orders || [];
+      console.log("ORDERS COUNT:", ordersData.length);
+      console.log("ORDERS DATA:", ordersData);
+
+      /* ── TOP PRODUCTS ── */
+      const productMap: Record<string, number> = {};
+
+      ordersData.forEach((order: any) => {
+        if (!order.orderItems) return;
+
+        order.orderItems.forEach((item: any) => {
+          const name =
+            item.name ||
+            item.product?.name ||
+            item.product?.title ||
+            "Unknown";
+
+          const qty = item.qty || item.quantity || 1;
+
+          productMap[name] = (productMap[name] || 0) + qty;
+        });
+      });
+
+      const topProductsData = Object.entries(productMap).map(([name, value]) => ({
+        name,
+        value,
+      }));
+
+      console.log("TOP PRODUCTS:", topProductsData);
+
+      /* ── WEEKLY REVENUE ── */
+      const weeklyMap: Record<string, number> = {};
+
+      ordersData.forEach((order: any) => {
+        const date = new Date(order.createdAt);
+        const week = Math.ceil(date.getDate() / 7);
+        const label = `Week ${week}`;
+
+        weeklyMap[label] = (weeklyMap[label] || 0) + (order.totalPrice || 0);
+      });
+
+      const weeklyRevenue = Object.entries(weeklyMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, revenue]) => ({ name, revenue }));
+
+      console.log("WEEKLY REVENUE:", weeklyRevenue);
+
       setStats(data.stats);
-      setMonthlyRevenue(data.monthlyRevenue);
+      setMonthlyRevenue(weeklyRevenue);
       setWeeklyOrders(data.weeklyOrders);
-      setTopProducts(data.topProducts);
+      setTopProducts(topProductsData);
       setLoaded(true);
-    } catch (err) {
-      console.log("Dashboard Error", err);
+    } catch (err: any) {
+      console.error("Dashboard Error:", err);
+      console.error("Error message:", err.message);
     }
   };
 
@@ -196,7 +252,7 @@ const AdminDashboard = () => {
           <SectionLabel icon={<TrendingUp size={14} />} text="Analytics Overview" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-3">
             <div className="lg:col-span-2 bg-white rounded-3xl border border-[#E8DCCF] p-7 shadow-sm hover:shadow-md transition-shadow">
-              <RevenueChart title="Monthly Revenue Trends" data={monthlyRevenue} />
+              <RevenueChart title="Weekly Revenue Trends" data={monthlyRevenue} />
             </div>
             <div className="bg-white rounded-3xl border border-[#E8DCCF] p-7 shadow-sm hover:shadow-md transition-shadow">
               <TopProductsChart title="Top Selling Products" data={topProducts} />

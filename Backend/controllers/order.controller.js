@@ -1,10 +1,8 @@
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
+import User from "../models/User.js";
 
-/* @desc   Create new order
-   @route  POST /api/orders
-   @access Customer
-*/
+// ================= CREATE ORDER =================
 export const createOrder = async (req, res) => {
   try {
     const {
@@ -25,7 +23,6 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // Calculate total price
     let totalPrice = 0;
     const items = [];
 
@@ -47,7 +44,7 @@ export const createOrder = async (req, res) => {
     }
 
     const order = await Order.create({
-      user: req.user._id,
+      user: req.user?._id || req.body.user, // supports BOTH systems
       orderItems: items,
       deliveryMethod,
       deliveryAddress,
@@ -58,16 +55,13 @@ export const createOrder = async (req, res) => {
     });
 
     res.status(201).json(order);
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-
-/* @desc   Get logged-in user's orders
-   @route  GET /api/orders/my
-   @access Customer
-*/
+// ================= GET MY ORDERS =================
 export const getMyOrders = async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id })
@@ -80,43 +74,65 @@ export const getMyOrders = async (req, res) => {
   }
 };
 
-/* @desc   Get orders for logged-in seller
-   @route  GET /api/orders/seller
-   @access Seller / Admin
-*/
+// ================= GET SELLER ORDERS (MERGED BOTH LOGICS) =================
 export const getSellerOrders = async (req, res) => {
   try {
+    const sellerId = req.params.sellerId || req.user?._id;
+
     const orders = await Order.find()
       .populate("user", "name email")
       .populate("orderItems.product", "name price seller")
       .sort({ createdAt: -1 });
 
-    // Filter orders containing seller's products
-    const sellerOrders = orders.filter(order =>
-      order.orderItems.some(
-        item => item.product?.seller?.toString() === req.user._id.toString()
-      )
-    );
+    const filteredOrders = orders
+      .map(order => {
+        const sellerItems = order.orderItems.filter(item =>
+          item.product &&
+          item.product.seller &&
+          item.product.seller.toString() === sellerId.toString()
+        );
 
-    res.json(sellerOrders);
+        if (sellerItems.length === 0) return null;
+
+        return {
+          ...order._doc,
+          orderItems: sellerItems
+        };
+      })
+      .filter(order => order !== null);
+
+    res.status(200).json(filteredOrders);
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-/* @desc   Update order status
-   @route  PUT /api/orders/:id/status
-   @access Seller / Admin
-*/
+// ================= GET ORDER DETAILS =================
+export const getOrderDetails = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.orderId || req.params.id)
+      .populate("user", "-password")
+      .populate("orderItems.product");
+
+    res.status(200).json(order);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ================= UPDATE STATUS (GENERIC) =================
 export const updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
 
-    if (!["Pending", "Dispatched", "Delivered"].includes(status)) {
+    const allowed = ["Pending", "Confirmed", "Dispatched", "Delivered", "Cancelled"];
+
+    if (!allowed.includes(status)) {
       return res.status(400).json({ message: "Invalid order status" });
     }
 
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id || req.params.orderId);
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
@@ -125,37 +141,32 @@ export const updateOrderStatus = async (req, res) => {
     order.orderStatus = status;
     await order.save();
 
-    res.json({
-      message: "Order status updated",
-      order
-    });
+    res.json({ message: "Order status updated", order });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
+// ================= QUICK ACTIONS =================
+export const confirmOrder = async (req, res) => {
+  return updateOrderStatus({ ...req, body: { status: "Confirmed" } }, res);
+};
 
-/* @desc   Request order cancellation
-   @route  PUT /api/orders/:id/cancel
-   @access Customer
-*/
+export const dispatchOrder = async (req, res) => {
+  return updateOrderStatus({ ...req, body: { status: "Dispatched" } }, res);
+};
+
+export const markOrderDelivered = async (req, res) => {
+  return updateOrderStatus({ ...req, body: { status: "Delivered" } }, res);
+};
+
+// ================= CANCEL REQUEST =================
 export const requestCancelOrder = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id || req.params.orderId);
 
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    if (order.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
-
-    if (order.orderStatus !== "Pending") {
-      return res.status(400).json({
-        message: "Order cannot be cancelled after dispatch"
-      });
-    }
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
     order.cancelRequested = true;
     order.cancelStatus = "Requested";
@@ -163,35 +174,20 @@ export const requestCancelOrder = async (req, res) => {
     await order.save();
 
     res.json({ message: "Cancellation requested", order });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-
-/* @desc   Seller approve/reject order cancellation
-   @route  PUT /api/orders/:id/cancel/action
-   @access Seller / Admin
-*/
+// ================= HANDLE CANCEL =================
 export const handleCancelAction = async (req, res) => {
   try {
-    const { action } = req.body; // "approve" or "reject"
+    const { action } = req.body;
 
-    if (!["approve", "reject"].includes(action)) {
-      return res.status(400).json({ message: "Invalid action" });
-    }
+    const order = await Order.findById(req.params.id || req.params.orderId);
 
-    const order = await Order.findById(req.params.id);
-
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    if (order.cancelStatus !== "Requested") {
-      return res.status(400).json({
-        message: "No cancellation request for this order"
-      });
-    }
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
     if (action === "approve") {
       order.cancelStatus = "Approved";
@@ -200,44 +196,25 @@ export const handleCancelAction = async (req, res) => {
       order.cancelStatus = "Rejected";
     }
 
+    order.cancelRequested = false;
+
     await order.save();
 
-    res.json({
-      message: `Cancellation ${action}d successfully`,
-      order
-    });
+    res.json({ message: `Cancellation ${action}d`, order });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-/* @desc   Request return or exchange
-   @route  PUT /api/orders/:id/return
-   @access Customer
-*/
+// ================= RETURN / EXCHANGE =================
 export const requestReturnOrExchange = async (req, res) => {
   try {
-    const { type } = req.body; // "Return" or "Exchange"
+    const { type } = req.body;
 
-    if (!["Return", "Exchange"].includes(type)) {
-      return res.status(400).json({ message: "Invalid return type" });
-    }
+    const order = await Order.findById(req.params.id || req.params.orderId);
 
-    const order = await Order.findById(req.params.id);
-
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    if (order.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
-
-    if (order.orderStatus !== "Delivered") {
-      return res.status(400).json({
-        message: "Return/Exchange allowed only after delivery"
-      });
-    }
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
     order.returnRequested = true;
     order.returnType = type;
@@ -245,51 +222,28 @@ export const requestReturnOrExchange = async (req, res) => {
 
     await order.save();
 
-    res.json({
-      message: `${type} requested successfully`,
-      order
-    });
+    res.json({ message: `${type} requested`, order });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-/* @desc   Seller approve/reject return or exchange
-   @route  PUT /api/orders/:id/return/action
-   @access Seller / Admin
-*/
 export const handleReturnAction = async (req, res) => {
   try {
-    const { action } = req.body; // "approve" or "reject"
+    const { action } = req.body;
 
-    if (!["approve", "reject"].includes(action)) {
-      return res.status(400).json({ message: "Invalid action" });
-    }
+    const order = await Order.findById(req.params.id || req.params.orderId);
 
-    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    if (order.returnStatus !== "Requested") {
-      return res.status(400).json({
-        message: "No return/exchange request for this order"
-      });
-    }
-
-    if (action === "approve") {
-      order.returnStatus = "Approved";
-    } else {
-      order.returnStatus = "Rejected";
-    }
+    order.returnStatus = action === "approve" ? "Approved" : "Rejected";
+    order.returnRequested = false;
 
     await order.save();
 
-    res.json({
-      message: `Return/Exchange ${action}d successfully`,
-      order
-    });
+    res.json({ message: `Return ${action}d`, order });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

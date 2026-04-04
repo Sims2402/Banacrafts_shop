@@ -5,14 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useAuth, UserRole } from "@/context/AuthContext";
+import { normalizeUserFromPayload, useAuth, UserRole } from "@/context/AuthContext";
 import logo from "@/assets/logo.png";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState<UserRole>("customer");
+
+  // ✅ FIX: default seller (no customer)
+  const [role, setRole] = useState<UserRole>("seller");
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -28,36 +31,36 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const success = await login(email, password, role);
+      await login(email, password);
 
-      if (!success) {
-        setError("Invalid email or password");
-        setLoading(false);
-        return;
-      }
+      const rawStored = (() => {
+        try {
+          return JSON.parse(localStorage.getItem("banacrafts_user") || "{}");
+        } catch {
+          return {};
+        }
+      })();
 
-      // Redirect based on role
-      switch (role) {
+      const storedUser =
+        normalizeUserFromPayload(rawStored) ??
+        (rawStored as Record<string, unknown>);
+
+      switch (String((storedUser as { role?: unknown }).role || "")) {
         case "admin":
           navigate("/admin/dashboard");
           break;
         case "seller":
           navigate("/seller/dashboard");
           break;
-        case "customer":
-          navigate(from === "/login" ? "/customer/dashboard" : from);
-          break;
         default:
           navigate("/");
       }
-
-    } catch (err: any) {
-      // ✅ STEP 3: show a specific message when the role doesn't match
-      if (err?.response?.status === 403) {
-        setError("Incorrect role selected. Please choose the correct account type.");
-      } else {
-        setError("Login failed. Please try again.");
-      }
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message?: unknown }).message || "Login failed")
+          : "Login failed";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -65,7 +68,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Panel - Form */}
+      {/* Left Panel */}
       <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8">
@@ -122,8 +125,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -131,23 +133,20 @@ const Login = () => {
             </div>
 
             <div className="flex justify-end">
-              <Link
-                to="/forgot-password"
-                className="text-sm text-primary hover:underline"
-              >
+              <Link to="/forgot-password" className="text-sm text-primary hover:underline">
                 Forgot Password?
               </Link>
             </div>
 
+            {/* ✅ FIXED ROLE SELECT (NO CUSTOMER) */}
             <div>
               <Label className="mb-3 block">Login As</Label>
               <RadioGroup
-                value={role || "customer"}
+                value={role}
                 onValueChange={(value) => setRole(value as UserRole)}
-                className="grid grid-cols-3 gap-4"
+                className="grid grid-cols-2 gap-4"
               >
                 {[
-                  { value: "customer", label: "Customer" },
                   { value: "seller", label: "Seller" },
                   { value: "admin", label: "Admin" },
                 ].map((option) => (
@@ -159,7 +158,7 @@ const Login = () => {
                     />
                     <Label
                       htmlFor={option.value}
-                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors"
+                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted p-4 hover:bg-accent peer-data-[state=checked]:border-primary cursor-pointer"
                     >
                       <span className="text-sm font-medium">{option.label}</span>
                     </Label>
@@ -168,7 +167,7 @@ const Login = () => {
               </RadioGroup>
             </div>
 
-            <Button type="submit" variant="heritage" size="lg" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
@@ -182,7 +181,7 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Right Panel - Decorative */}
+      {/* Right Panel */}
       <div className="hidden lg:flex lg:flex-1 bg-heritage-maroon items-center justify-center p-12">
         <div className="max-w-md text-center text-heritage-cream">
           <h2 className="font-heading text-4xl font-bold mb-6">

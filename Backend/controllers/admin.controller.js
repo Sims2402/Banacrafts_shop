@@ -42,6 +42,7 @@ export const getAdminStats = async (req, res) => {
 
 export const getDashboardData = async (req, res) => {
   try {
+    console.log("🔍 getDashboardData called by:", req.user?.email);
 
     const totalCustomers = await User.countDocuments({ role: "customer" });
     const totalSellers = await User.countDocuments({ role: "seller" });
@@ -54,26 +55,26 @@ export const getDashboardData = async (req, res) => {
 
     const totalRevenue = revenueData[0]?.totalRevenue || 0;
 
-    const monthlyRaw = await Order.aggregate([
-      { $match: { orderStatus: "Delivered" } },
-      {
-        $group: {
-          _id: {
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" }
-          },
-          revenue: { $sum: "$totalPrice" }
-        }
-      },
-      { $sort: { "_id.year": 1, "_id.month": 1 } }
-    ]);
+    // ✅ FETCH ORDERS WITH PROPER POPULATION
+    const orders = await Order.find()
+      .populate("orderItems.product", "name title")
+      .populate("user", "name")
+      .sort({ createdAt: -1 });
 
-    const monthNames = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    console.log("📦 Total orders fetched:", orders.length);
+    console.log("🛍️ Sample order:", orders[0] ? {
+      _id: orders[0]._id,
+      itemCount: orders[0].orderItems?.length,
+      totalPrice: orders[0].totalPrice,
+      createdAt: orders[0].createdAt,
+      sampleItem: orders[0].orderItems?.[0] ? {
+        name: orders[0].orderItems[0].name,
+        product: orders[0].orderItems[0].product,
+        quantity: orders[0].orderItems[0].quantity
+      } : "No items"
+    } : "No orders");
 
-    const monthlyRevenue = monthlyRaw.map(item => ({
-      month: `${monthNames[item._id.month]} ${item._id.year}`,
-      revenue: item.revenue
-    }));
+    console.log("ADMIN ORDERS:", orders.length);
 
     const weeklyOrders = await Order.aggregate([
       {
@@ -85,26 +86,20 @@ export const getDashboardData = async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
 
-    const topProducts = await Product.aggregate([
-      { $sort: { sold: -1 } },
-      { $limit: 5 },
-      {
-        $project: {
-          name: "$title",
-          value: "$sold"
-        }
-      }
-    ]);
+    console.log("📊 Response being sent:", {
+      statsKeys: Object.keys({ totalRevenue, totalOrders, totalSellers, totalCustomers }),
+      ordersCount: orders.length,
+      weeklyOrdersCount: weeklyOrders.length
+    });
 
     res.json({
       stats: { totalRevenue, totalOrders, totalSellers, totalCustomers },
-      monthlyRevenue,
-      weeklyOrders,
-      topProducts
+      orders,
+      weeklyOrders
     });
 
   } catch (error) {
-    console.error("Dashboard Error:", error);
+    console.error("❌ Dashboard Error:", error);
     res.status(500).json({ message: error.message });
   }
 };

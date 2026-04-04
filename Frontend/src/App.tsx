@@ -6,10 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
-
 import ProtectedRoute from "@/routes/ProtectedRoute";
 
-/* Profile Edit Page */
+/* Profile */
 import ProfileEdit from "./pages/customer/ProfileEdit";
 
 /* Public Pages */
@@ -48,7 +47,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminDiscounts from "./pages/admin/AdminDiscounts";
 import AdminAwareness from "./pages/admin/AdminAwareness";
-import AdminArtisans from "./pages/admin/AdminArtisans"; // ← added
+import AdminArtisans from "./pages/admin/AdminArtisans";
 
 /* Support Pages */
 import ReturnsRefunds from "./pages/support/ReturnsRefunds";
@@ -61,7 +60,6 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => (
-
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <CartProvider>
@@ -71,10 +69,9 @@ const App = () => (
           <Sonner />
 
           <BrowserRouter>
-
             <Routes>
 
-              {/* PUBLIC ROUTES */}
+              {/* PUBLIC */}
               <Route path="/" element={<Index />} />
               <Route path="/products" element={<Products />} />
               <Route path="/products/:id" element={<ProductDetail />} />
@@ -89,153 +86,108 @@ const App = () => (
               <Route path="/verify-otp" element={<VerifyOTP />} />
               <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* SUPPORT ROUTES */}
+              {/* SUPPORT */}
               <Route path="/support/returns-refunds" element={<ReturnsRefunds />} />
               <Route path="/support/shipping-info" element={<ShippingInfo />} />
               <Route path="/support/faqs" element={<FAQs />} />
               <Route path="/support/track-order" element={<TrackOrder />} />
 
-              {/* CUSTOMER ROUTES */}
-              <Route
-                path="/customer/dashboard"
-                element={
-                  <ProtectedRoute allowedRoles={["customer"]}>
-                    <CustomerDashboard />
-                  </ProtectedRoute>
-                }
-              />
+              {/* CUSTOMER */}
+              <Route path="/customer/dashboard" element={
+                <ProtectedRoute allowedRoles={["customer"]}>
+                  <CustomerDashboard />
+                </ProtectedRoute>
+              } />
               <Route path="/customer/cart" element={<Cart />} />
               <Route path="/customer/wishlist" element={<Wishlist />} />
-              <Route
-                path="/customer/checkout"
-                element={
-                  <ProtectedRoute allowedRoles={["customer", "seller", "admin"]}>
-                    <Checkout />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/customer/orders"
-                element={
-                  <ProtectedRoute allowedRoles={["customer", "seller", "admin"]}>
-                    <CustomerOrders />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/customer/checkout" element={
+                <ProtectedRoute allowedRoles={["customer", "seller", "admin"]}>
+                  <Checkout />
+                </ProtectedRoute>
+              } />
+              <Route path="/customer/orders" element={
+                <ProtectedRoute allowedRoles={["customer", "seller", "admin"]}>
+                  <CustomerOrders />
+                </ProtectedRoute>
+              } />
               <Route path="/order/success" element={<OrderSuccess />} />
-              <Route
-                path="/profile/edit"
-                element={
-                  <ProtectedRoute allowedRoles={["customer", "seller", "admin"]}>
-                    <ProfileEdit />
-                  </ProtectedRoute>
-                }
-              />
 
-              {/* SELLER ROUTES */}
-              <Route
-                path="/seller/dashboard"
-                element={
-                  <ProtectedRoute allowedRoles={["seller"]}>
-                    <SellerDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/seller/products"
-                element={
-                  <ProtectedRoute allowedRoles={["seller"]}>
-                    <SellerProducts />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/seller/orders"
-                element={
-                  <ProtectedRoute allowedRoles={["seller"]}>
-                    <SellerOrders />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/seller/discounts"
-                element={
-                  <ProtectedRoute allowedRoles={["seller"]}>
-                    <SellerDiscounts />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/seller/reviews"
-                element={
-                  <ProtectedRoute allowedRoles={["seller"]}>
-                    <SellerReviews />
-                  </ProtectedRoute>
-                }
-              />
+              {/* PROFILE */}
+              <Route path="/profile/edit" element={
+                <ProtectedRoute allowedRoles={["customer", "seller", "admin"]}>
+                  <ProfileEdit />
+                </ProtectedRoute>
+              } />
 
-              {/* ADMIN ROUTES */}
-              <Route
-                path="/admin/dashboard"
-                element={
-                  <ProtectedRoute allowedRoles={["admin"]}>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/users"
-                element={
-                  <ProtectedRoute allowedRoles={["admin"]}>
-                    <AdminUsers />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/orders"
-                element={
-                  <ProtectedRoute allowedRoles={["admin"]}>
-                    <AdminOrders />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/discounts"
-                element={
-                  <ProtectedRoute allowedRoles={["admin"]}>
-                    <AdminDiscounts />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/awareness"
-                element={
-                  <ProtectedRoute allowedRoles={["admin"]}>
-                    <AdminAwareness />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/artisans"
-                element={
-                  <ProtectedRoute allowedRoles={["admin"]}>
-                    <AdminArtisans />
-                  </ProtectedRoute>
-                }
-              />
+              {/* SELLER */}
+              <Route path="/seller/dashboard" element={
+                <ProtectedRoute allowedRoles={["seller"]}>
+                  <SellerDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/seller/products" element={
+                <ProtectedRoute allowedRoles={["seller"]}>
+                  <SellerProducts />
+                </ProtectedRoute>
+              } />
+              <Route path="/seller/orders" element={
+                <ProtectedRoute allowedRoles={["seller"]}>
+                  <SellerOrders />
+                </ProtectedRoute>
+              } />
+              <Route path="/seller/discounts" element={
+                <ProtectedRoute allowedRoles={["seller"]}>
+                  <SellerDiscounts />
+                </ProtectedRoute>
+              } />
+              <Route path="/seller/reviews" element={
+                <ProtectedRoute allowedRoles={["seller"]}>
+                  <SellerReviews />
+                </ProtectedRoute>
+              } />
+
+              {/* ADMIN */}
+              <Route path="/admin/dashboard" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/users" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminUsers />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/orders" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminOrders />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/discounts" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminDiscounts />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/awareness" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminAwareness />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/artisans" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminArtisans />
+                </ProtectedRoute>
+              } />
 
               {/* FALLBACK */}
               <Route path="*" element={<NotFound />} />
 
             </Routes>
-
           </BrowserRouter>
 
         </TooltipProvider>
       </CartProvider>
     </AuthProvider>
   </QueryClientProvider>
-
 );
 
 export default App;

@@ -22,8 +22,12 @@ const userSchema = new mongoose.Schema(
       required: true,
       minlength: 6
     },
-    avatar:  { type: String, default: null },
-    phone:   { type: String, default: "" },
+
+    // ================= PROFILE =================
+    avatar: { type: String, default: null },
+    profilePicture: { type: String, default: "" },
+
+    phone: { type: String, default: "" },
     address: { type: String, default: "" },
 
     role: {
@@ -32,8 +36,11 @@ const userSchema = new mongoose.Schema(
       default: "customer"
     },
 
-    phone: String,
-    address: String
+    // ================= PASSWORD RESET =================
+    passwordResetOtpHash: { type: String, default: "" },
+    passwordResetOtpExpiresAt: { type: Date, default: null },
+    passwordResetTokenHash: { type: String, default: "" },
+    passwordResetTokenExpiresAt: { type: Date, default: null }
   },
   {
     timestamps: true,
@@ -41,7 +48,7 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-/* 🔐 HASH PASSWORD (Mongoose 7 correct way) */
+// ================= HASH PASSWORD =================
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
 
@@ -49,11 +56,9 @@ userSchema.pre("save", async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-/* 🔐 COMPARE PASSWORD */
+// ================= COMPARE PASSWORD =================
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  return bcrypt.compare(enteredPassword, this.password);
 };
 
-const User = mongoose.model("User", userSchema);
-
-export default User;
+export default mongoose.model("User", userSchema);

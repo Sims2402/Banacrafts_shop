@@ -1,99 +1,103 @@
 import mongoose from "mongoose";
 
+// ================= ORDER ITEM =================
 const orderItemSchema = new mongoose.Schema(
   {
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
-      required: true
+      required: true,
     },
-    name: String,
-    price: Number,
+
+    name: { type: String },
+    price: { type: Number },
+
     quantity: {
       type: Number,
-      required: true
-    }
+      required: true,
+    },
   },
   { _id: false }
 );
 
+// ================= ORDER =================
 const orderSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true
+      required: true,
     },
+
     orderItems: [orderItemSchema],
 
     deliveryMethod: {
       type: String,
       enum: ["self_pickup", "seller_delivery"],
-      required: true
+      required: true,
     },
 
-    deliveryAddress: {
-      type: String
-    },
-
-    phone: {
-      type: String
-    },
+    deliveryAddress: { type: String },
+    phone: { type: String },
 
     paymentMethod: {
       type: String,
       enum: ["UPI", "Cash"],
-      required: true
     },
 
     paymentStatus: {
       type: String,
       enum: ["Pending", "Paid"],
-      default: "Pending"
+      default: "Pending",
     },
 
     orderStatus: {
       type: String,
-      enum: ["Pending", "Dispatched", "Delivered", "Cancelled"],
-      default: "Pending"
+      enum: ["Pending", "Confirmed", "Dispatched", "Delivered", "Cancelled"],
+      default: "Pending",
     },
 
     totalPrice: {
       type: Number,
-      required: true
+      required: true,
     },
 
+    // ================= CANCEL =================
     cancelRequested: {
       type: Boolean,
-      default: false
+      default: false,
     },
 
     cancelStatus: {
       type: String,
       enum: ["None", "Requested", "Approved", "Rejected"],
-      default: "None"
+      default: "None",
     },
+
+    // ================= RETURN / EXCHANGE =================
     returnRequested: {
       type: Boolean,
-      default: false
+      default: false,
     },
+
     returnType: {
       type: String,
       enum: ["Return", "Exchange", null],
-    default: null
+      default: null,
     },
+
     returnStatus: {
       type: String,
       enum: ["None", "Requested", "Approved", "Rejected"],
-      default: "None"
-    }
-
-
+      default: "None",
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    strict: false,
+  }
 );
 
+// ✅ THIS IS IMPORTANT (clean export)
 const Order = mongoose.model("Order", orderSchema);
-
 export default Order;
-
