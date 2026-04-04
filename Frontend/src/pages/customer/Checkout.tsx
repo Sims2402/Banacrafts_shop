@@ -176,7 +176,7 @@ const handlePlaceOrder = async () => {
       product: getProductId(item.product),
       quantity: item.quantity,
     }));
-if (!/^[6-9]\d{9}$/.test(phone)) {
+if (deliveryMethod === "seller_delivery" && !/^[6-9]\d{9}$/.test(phone)) {
   alert("Please enter a valid 10-digit phone number");
   return;
 }
