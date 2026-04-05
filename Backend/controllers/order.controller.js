@@ -11,23 +11,6 @@ function resolveLineQuantity(item) {
   return n >= 1 ? n : 1;
 }
 
-/**
- * Order line product ref: populated document has ._id; otherwise ObjectId or string.
- */
-function lineProductId(item) {
-  const p = item?.product;
-  if (p === undefined || p === null || p === "") {
-    return undefined;
-  }
-  if (typeof p === "object") {
-    if (p._id != null) {
-      return p._id;
-    }
-    return p;
-  }
-  return p;
-}
-
 // ================= CREATE ORDER =================
 export const createOrder = async (req, res) => {
   const decremented = [];
@@ -154,17 +137,6 @@ async function rollbackStock(decremented) {
   }
 }
 
-/** Legacy orders may omit item.quantity; coerce to a valid positive int before save/stock logic. */
-function normalizeLegacyOrderItemQuantities(order) {
-  if (!order?.orderItems?.length) return;
-  for (const item of order.orderItems) {
-    const q = Number(item.quantity);
-    if (!Number.isInteger(q) || q < 1) {
-      item.quantity = 1;
-    }
-  }
-}
-
 // ================= GET MY ORDERS =================
 export const getMyOrders = async (req, res) => {
   try {
@@ -225,6 +197,18 @@ export const getOrderDetails = async (req, res) => {
   }
 };
 
+/**
+ * Patch order status without document.save() — full saves re-validate nested
+ * orderItems and can 500 on legacy DB rows (same issue confirmOrder avoided).
+ */
+async function patchOrderStatus(orderId, status) {
+  return Order.findByIdAndUpdate(
+    orderId,
+    { $set: { orderStatus: status } },
+    { new: true, runValidators: false }
+  );
+}
+
 // ================= UPDATE STATUS (GENERIC) =================
 export const updateOrderStatus = async (req, res) => {
   try {
@@ -236,31 +220,30 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(400).json({ message: "Invalid order status" });
     }
 
-    const order = await Order.findById(req.params.id || req.params.orderId);
+    const orderId = req.params.id || req.params.orderId;
 
-    if (!order) {
+    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
+
+    const updatedOrder = await patchOrderStatus(orderId, status);
+
+    if (!updatedOrder) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    order.orderStatus = status;
-    await order.save();
-
-    res.json({ message: "Order status updated", order });
-
+    res.json({ message: "Order status updated", order: updatedOrder });
   } catch (error) {
+    console.error("[updateOrderStatus]", error);
     res.status(500).json({
       message: error?.message || "Failed to update order status"
     });
   }
 };
 
-const CONFIRM_OUT_OF_STOCK_MSG =
-  "Cannot confirm order: Product is out of stock";
-
 // ================= QUICK ACTIONS =================
+/** Seller confirm: order status only — inventory is managed by the customer order system. */
 export const confirmOrder = async (req, res) => {
-  const decremented = [];
-
   try {
     const orderId = req.params.id || req.params.orderId;
 
@@ -274,8 +257,6 @@ export const confirmOrder = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    normalizeLegacyOrderItemQuantities(order);
-
     if (order.orderStatus === "Confirmed") {
       return res.status(200).json({
         message: "Order already confirmed",
@@ -283,76 +264,20 @@ export const confirmOrder = async (req, res) => {
       });
     }
 
-    const alreadyCommitted = order.inventoryCommitted === true;
-
-    if (!alreadyCommitted) {
-      const items = order.orderItems || [];
-
-      if (items.length === 0) {
-        return res.status(400).json({ message: "Order has no line items" });
-      }
-
-      for (const item of items) {
-        const productId = lineProductId(item);
-
-        if (!productId || !mongoose.Types.ObjectId.isValid(String(productId))) {
-          await rollbackStock(decremented);
-          return res.status(400).json({ message: "Invalid product reference" });
-        }
-
-        const requiredQty = resolveLineQuantity(item);
-
-        const product = await Product.findById(productId);
-
-        if (!product) {
-          await rollbackStock(decremented);
-          return res.status(404).json({ message: "Product not found" });
-        }
-
-        const availableQty = Number(product.quantity) || 0;
-
-        if (availableQty < requiredQty) {
-          await rollbackStock(decremented);
-          return res.status(409).json({ message: CONFIRM_OUT_OF_STOCK_MSG });
-        }
-
-        const updated = await Product.findOneAndUpdate(
-          { _id: productId, quantity: { $gte: requiredQty } },
-          { $inc: { quantity: -requiredQty } },
-          { new: true }
-        );
-
-        if (!updated) {
-          await rollbackStock(decremented);
-          return res.status(409).json({ message: CONFIRM_OUT_OF_STOCK_MSG });
-        }
-
-        decremented.push({ id: productId, qty: requiredQty });
-      }
+    const items = order.orderItems || [];
+    if (items.length === 0) {
+      return res.status(400).json({ message: "Order has no line items" });
     }
 
-    // Update only status flags — avoid order.save(), which re-validates the full
-    // document and can 500 on legacy/corrupt nested orderItems.
-    const setFields = { orderStatus: "Confirmed" };
-    if (!alreadyCommitted) {
-      setFields.inventoryCommitted = true;
-    }
-
-    const updatedOrder = await Order.findByIdAndUpdate(
-      orderId,
-      { $set: setFields },
-      { new: true, runValidators: false }
-    );
+    const updatedOrder = await patchOrderStatus(orderId, "Confirmed");
 
     if (!updatedOrder) {
-      await rollbackStock(decremented);
       return res.status(404).json({ message: "Order not found" });
     }
 
     return res.json({ message: "Order confirmed", order: updatedOrder });
   } catch (error) {
     console.error("[confirmOrder]", error);
-    await rollbackStock(decremented);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -368,18 +293,23 @@ export const markOrderDelivered = async (req, res) => {
 // ================= CANCEL REQUEST =================
 export const requestCancelOrder = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id || req.params.orderId);
+    const orderId = req.params.id || req.params.orderId;
 
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
 
-    order.cancelRequested = true;
-    order.cancelStatus = "Requested";
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      { $set: { cancelRequested: true, cancelStatus: "Requested" } },
+      { new: true, runValidators: false }
+    );
 
-    await order.save();
+    if (!updatedOrder) return res.status(404).json({ message: "Order not found" });
 
-    res.json({ message: "Cancellation requested", order });
-
+    res.json({ message: "Cancellation requested", order: updatedOrder });
   } catch (error) {
+    console.error("[requestCancelOrder]", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -388,25 +318,32 @@ export const requestCancelOrder = async (req, res) => {
 export const handleCancelAction = async (req, res) => {
   try {
     const { action } = req.body;
+    const orderId = req.params.id || req.params.orderId;
 
-    const order = await Order.findById(req.params.id || req.params.orderId);
-
-    if (!order) return res.status(404).json({ message: "Order not found" });
-
-    if (action === "approve") {
-      order.cancelStatus = "Approved";
-      order.orderStatus = "Cancelled";
-    } else {
-      order.cancelStatus = "Rejected";
+    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: "Invalid order id" });
     }
 
-    order.cancelRequested = false;
+    const setFields =
+      action === "approve"
+        ? {
+            cancelStatus: "Approved",
+            orderStatus: "Cancelled",
+            cancelRequested: false
+          }
+        : { cancelStatus: "Rejected", cancelRequested: false };
 
-    await order.save();
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      { $set: setFields },
+      { new: true, runValidators: false }
+    );
 
-    res.json({ message: `Cancellation ${action}d`, order });
+    if (!updatedOrder) return res.status(404).json({ message: "Order not found" });
 
+    res.json({ message: `Cancellation ${action}d`, order: updatedOrder });
   } catch (error) {
+    console.error("[handleCancelAction]", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -415,20 +352,29 @@ export const handleCancelAction = async (req, res) => {
 export const requestReturnOrExchange = async (req, res) => {
   try {
     const { type } = req.body;
+    const orderId = req.params.id || req.params.orderId;
 
-    const order = await Order.findById(req.params.id || req.params.orderId);
+    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
 
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        $set: {
+          returnRequested: true,
+          returnType: type,
+          returnStatus: "Requested"
+        }
+      },
+      { new: true, runValidators: false }
+    );
 
-    order.returnRequested = true;
-    order.returnType = type;
-    order.returnStatus = "Requested";
+    if (!updatedOrder) return res.status(404).json({ message: "Order not found" });
 
-    await order.save();
-
-    res.json({ message: `${type} requested`, order });
-
+    res.json({ message: `${type} requested`, order: updatedOrder });
   } catch (error) {
+    console.error("[requestReturnOrExchange]", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -436,19 +382,28 @@ export const requestReturnOrExchange = async (req, res) => {
 export const handleReturnAction = async (req, res) => {
   try {
     const { action } = req.body;
+    const orderId = req.params.id || req.params.orderId;
 
-    const order = await Order.findById(req.params.id || req.params.orderId);
+    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: "Invalid order id" });
+    }
 
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        $set: {
+          returnStatus: action === "approve" ? "Approved" : "Rejected",
+          returnRequested: false
+        }
+      },
+      { new: true, runValidators: false }
+    );
 
-    order.returnStatus = action === "approve" ? "Approved" : "Rejected";
-    order.returnRequested = false;
+    if (!updatedOrder) return res.status(404).json({ message: "Order not found" });
 
-    await order.save();
-
-    res.json({ message: `Return ${action}d`, order });
-
+    res.json({ message: `Return ${action}d`, order: updatedOrder });
   } catch (error) {
+    console.error("[handleReturnAction]", error);
     res.status(500).json({ message: error.message });
   }
 };
