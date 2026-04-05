@@ -29,7 +29,32 @@ export const createOrder = async (req, res) => {
     // Calculate total price
     let totalPrice = 0;
     const items = [];
+// new code
+    for (const item of orderItems) {
 
+  const product = await Product.findById(item.product);
+
+  if (!product) {
+    return res.status(404).json({ message: "Product not found" });
+  }
+
+  // 🔴 CHECK STOCK
+  if (item.quantity > product.quantity) {
+    return res.status(400).json({
+      message: `Only ${product.quantity} items available for ${product.name}`
+    });
+  }
+
+  totalPrice += product.price * item.quantity;
+
+  items.push({
+    product: product._id,
+    name: product.name,
+    price: product.price,
+    quantity: item.quantity
+  });
+}
+/*
     for (const item of orderItems) {
       const product = await Product.findById(item.product);
 
@@ -46,7 +71,7 @@ export const createOrder = async (req, res) => {
         quantity: item.quantity
       });
     }
-
+*/
     const order = await Order.create({
       user: req.user._id,
       orderItems: items,
@@ -57,6 +82,13 @@ export const createOrder = async (req, res) => {
       totalPrice,
       paymentStatus:"Pending"
     });
+    // 🔴 REDUCE PRODUCT STOCK
+for (const item of orderItems) {
+  await Product.findByIdAndUpdate(
+    item.product,
+    { $inc: { quantity: -item.quantity } }
+  );
+}
 const userEmail = req.user.email;
 console.log("Sending email to:", req.user.email);
 await sendEmail(

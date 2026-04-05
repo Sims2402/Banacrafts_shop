@@ -70,7 +70,7 @@ const Checkout = () => {
   const productDiscountInfo = useMemo((): ProductDiscountInfo[] => {
     return items.map((item) => {
       const productTotal = item.product.price * item.quantity;
-      
+
       // Find all applicable discounts for this product
       const applicableDiscounts = activeDiscounts.filter((discount) => {
         // Check scope
@@ -143,7 +143,7 @@ const Checkout = () => {
   // Get all unique applied discounts for display
   const appliedDiscounts = useMemo((): AppliedDiscount[] => {
     const discountMap = new Map<string, AppliedDiscount>();
-    
+
     productDiscountInfo.forEach((info) => {
       if (info.bestDiscount && info.savings > 0) {
         const existingDiscount = discountMap.get(info.bestDiscount.id);
@@ -168,78 +168,83 @@ const Checkout = () => {
     return null;
   }
 
-const handlePlaceOrder = async () => {
-  try {
-    setIsProcessing(true);
+  const handlePlaceOrder = async () => {
+    try {
+      setIsProcessing(true);
 
-    const orderItems = items.map((item) => ({
-      product: getProductId(item.product),
-      quantity: item.quantity,
-    }));
-if (deliveryMethod === "seller_delivery" && !/^[6-9]\d{9}$/.test(phone)) {
-  alert("Please enter a valid 10-digit phone number");
-  return;
-}
-    // 🟡 CASH FLOW (unchanged)
-    if (paymentMethod === "cash") {
-      const data:any = await api.post("/orders", {
-        orderItems,
-        deliveryMethod,
-        deliveryAddress:
-          deliveryMethod === "seller_delivery" ? address : "Self Pickup",
-        phone,
-        paymentMethod: "Cash",
+      const orderItems = items.map((item) => ({
+        product: getProductId(item.product),
+        quantity: item.quantity,
+      }));
+      if (deliveryMethod === "seller_delivery" && !/^[6-9]\d{9}$/.test(phone)) {
+        alert("Please enter a valid 10-digit phone number");
+        return;
+      }
+      // 🟡 CASH FLOW (unchanged)
+      if (paymentMethod === "cash") {
+        const data: any = await api.post("/orders", {
+          orderItems,
+          deliveryMethod,
+          deliveryAddress:
+            deliveryMethod === "seller_delivery" ? address : "Self Pickup",
+          phone,
+          paymentMethod: "Cash",
+        });
+
+        clearCart();
+        navigate(`/order/success/${data._id}`);
+        return;
+      }
+
+      // 🔴 ONLINE PAYMENT FLOW (Razorpay)
+
+      // 1. Create Razorpay order
+      const paymentData: any = await api.post("/payments/razorpay", {
+        amount: finalTotal,
       });
 
-      clearCart();
-      navigate(`/order/success/${data._id}`);
-      return;
-    }
+      const options = {
+        key: paymentData.key,
+        amount: paymentData.amount,
+        currency: paymentData.currency,
+        order_id: paymentData.orderId,
 
-    // 🔴 ONLINE PAYMENT FLOW (Razorpay)
+        name: "BanaCrafts",
+        description: "Order Payment",
 
-    // 1. Create Razorpay order
-    const paymentData:any = await api.post("/payments/razorpay", {
-      amount: finalTotal,
-    });
+        handler: async function (response: any) {
+          try {
+            // 2. Create order AFTER payment success
+            const createdOrder: any = await api.post("/orders", {
+              orderItems,
+              deliveryMethod,
+              deliveryAddress:
+                deliveryMethod === "seller_delivery"
+                  ? address
+                  : "Self Pickup",
+              phone,
+              paymentMethod: "Online",
+            });
 
-    const options = {
-      key: paymentData.key,
-      amount: paymentData.amount,
-      currency: paymentData.currency,
-      order_id: paymentData.orderId,
+            // 3. Verify payment
+            await api.post("/payments/razorpay/verify", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderId: createdOrder._id,
+            });
 
-      name: "BanaCrafts",
-      description: "Order Payment",
+            clearCart();
+            const orderId = createdOrder._id || createdOrder.data?._id;
+            navigate(`/order/success/${orderId}`);
+          } catch (err: any) {
+            const message =
+              err?.response?.data?.message ||
+              "Payment succeeded but order creation failed";
 
-      handler: async function (response: any) {
-        try {
-          // 2. Create order AFTER payment success
-          const createdOrder:any = await api.post("/orders", {
-            orderItems,
-            deliveryMethod,
-            deliveryAddress:
-              deliveryMethod === "seller_delivery"
-                ? address
-                : "Self Pickup",
-            phone,
-            paymentMethod: "Online",
-          });
+            alert(message);
+          }
 
-          // 3. Verify payment
-          await api.post("/payments/razorpay/verify", {
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-            orderId: createdOrder._id,
-          });
-
-          clearCart();
-          const orderId = createdOrder._id || createdOrder.data?._id;
-navigate(`/order/success/${orderId}`);
-        } catch (err: any) {
-          alert("Payment succeeded but order failed!");
-        }
       },
 
       prefill: {
@@ -254,9 +259,20 @@ navigate(`/order/success/${orderId}`);
     const rzp = new (window as any).Razorpay(options);
     rzp.open();
 
-  } catch (error: any) {
+  } 
+  catch (error: any) {
+  const message =
+    error?.response?.data?.message ||
+    error?.message ||
+    "Something went wrong";
+
+  alert(message);
+}
+  /*
+  catch (error: any) {
     alert(error.message || "Payment failed");
-  } finally {
+  } */
+  finally {
     setIsProcessing(false);
   }
 };
@@ -280,9 +296,9 @@ navigate(`/order/success/${orderId}`);
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Forms */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Delivery Method */}
-            <Card className="heritage-card">
+          < div className="lg:col-span-2 space-y-6" >
+          {/* Delivery Method */ }
+          < Card className="heritage-card" >
               <CardHeader>
                 <CardTitle className="text-lg font-display flex items-center gap-2">
                   <Truck className="h-5 w-5 text-primary" />
@@ -368,10 +384,10 @@ navigate(`/order/success/${orderId}`);
                   </div>
                 )}
               </CardContent>
-            </Card>
+            </Card >
 
-            {/* Payment Method */}
-            <Card className="heritage-card">
+  {/* Payment Method */ }
+  < Card className = "heritage-card" >
               <CardHeader>
                 <CardTitle className="text-lg font-display flex items-center gap-2">
                   <CreditCard className="h-5 w-5 text-primary" />
@@ -424,176 +440,176 @@ navigate(`/order/success/${orderId}`);
                   </div>
                 )}
               </CardContent>
-            </Card>
-          </div>
+            </Card >
+          </div >
 
-          {/* Right Column - Order Summary */}
-          <div className="lg:col-span-1">
-            <Card className="heritage-card sticky top-24">
-              <CardHeader>
-                <CardTitle className="text-lg font-display">Order Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Items with discount info */}
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {productDiscountInfo.map((info,index) => {
-                    const item = items[index];
-                    if (!item) return null;
+  {/* Right Column - Order Summary */ }
+  < div className = "lg:col-span-1" >
+    <Card className="heritage-card sticky top-24">
+      <CardHeader>
+        <CardTitle className="text-lg font-display">Order Summary</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Items with discount info */}
+        <div className="space-y-3 max-h-64 overflow-y-auto">
+          {productDiscountInfo.map((info, index) => {
+            const item = items[index];
+            if (!item) return null;
 
-                    return (
-                      <div key={info.productId} className="flex gap-3">
-                        <div className="relative">
-                          <img
-  src={item.product?.images?.[0]?.url || "/placeholder.png"}
-  alt={item.product?.name}
-  className="w-16 h-16 rounded-lg object-cover"
-/>
-                          {item.product.isReturnable ? (
-                            <Badge 
-                              variant="secondary" 
-                              className="absolute -top-2 -right-2 text-[10px] px-1 py-0.5 bg-green-100 text-green-700"
-                            >
-                              <RotateCcw className="h-2.5 w-2.5" />
-                            </Badge>
-                          ) : (
-                            <Badge 
-                              variant="secondary" 
-                              className="absolute -top-2 -right-2 text-[10px] px-1 py-0.5 bg-gray-100 text-gray-600"
-                            >
-                              <Ban className="h-2.5 w-2.5" />
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">{item.product.name}</h4>
-                          <p className="text-xs text-muted-foreground">Qty: {info.quantity}</p>
-                          <div className="flex items-center gap-2">
-                            {info.savings > 0 ? (
-                              <>
-                                <p className="text-sm font-medium text-primary">
-                                  ₹{info.discountedPrice.toLocaleString()}
-                                </p>
-                                <p className="text-xs text-muted-foreground line-through">
-                                  ₹{info.originalPrice.toLocaleString()}
-                                </p>
-                              </>
-                            ) : (
-                              <p className="text-sm font-medium text-primary">
-                                ₹{info.originalPrice.toLocaleString()}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {info.bestDiscount && info.savings > 0 && (
-                              <Badge variant="secondary" className="text-xs gap-1">
-                                <CheckCircle2 className="h-3 w-3" />
-                                {getDiscountLabel(info.bestDiscount)} applied
-                              </Badge>
-                            )}
-                            <Badge 
-                              variant="outline" 
-                              className={`text-[10px] ${item.product.isReturnable ? "text-green-600 border-green-200" : "text-gray-500 border-gray-200"}`}
-                            >
-                              {item.product.isReturnable ? "Returnable" : "Non-returnable"}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Available Offers Section */}
-                {appliedDiscounts.length > 0 && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium flex items-center gap-2">
-                        <Tag className="h-4 w-4 text-primary" />
-                        Offers Applied
-                      </h4>
-                      <div className="space-y-2">
-                        {appliedDiscounts.map((applied) => (
-                          <div
-                            key={applied.discount.id}
-                            className="flex items-center justify-between p-2 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900"
-                          >
-                            <div className="flex items-center gap-2">
-                              <Percent className="h-4 w-4 text-green-600" />
-                              <div>
-                                <p className="text-xs font-medium text-green-700 dark:text-green-400">
-                                  {applied.discount.label || applied.discount.code}
-                                </p>
-                                <p className="text-xs text-green-600 dark:text-green-500">
-                                  {getDiscountLabel(applied.discount)}
-                                </p>
-                              </div>
-                            </div>
-                            <span className="text-sm font-semibold text-green-700 dark:text-green-400">
-                              -₹{applied.appliedAmount.toLocaleString()}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <Separator />
-
-                {/* Pricing */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span>₹{totalPrice.toLocaleString()}</span>
-                  </div>
-                  {totalSavings > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span className="flex items-center gap-1">
-                        <Tag className="h-3 w-3" />
-                        Discount Savings
-                      </span>
-                      <span>-₹{totalSavings.toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Delivery</span>
-                    <span>{deliveryCharge === 0 ? "FREE" : `₹${deliveryCharge}`}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between font-display font-bold text-lg">
-                    <span>Total</span>
-                    <span className="text-primary">₹{finalTotal.toLocaleString()}</span>
-                  </div>
-                  {totalSavings > 0 && (
-                    <p className="text-xs text-center text-green-600 font-medium">
-                      🎉 You're saving ₹{totalSavings.toLocaleString()} on this order!
-                    </p>
+            return (
+              <div key={info.productId} className="flex gap-3">
+                <div className="relative">
+                  <img
+                    src={item.product?.images?.[0]?.url || "/placeholder.png"}
+                    alt={item.product?.name}
+                    className="w-16 h-16 rounded-lg object-cover"
+                  />
+                  {item.product.isReturnable ? (
+                    <Badge
+                      variant="secondary"
+                      className="absolute -top-2 -right-2 text-[10px] px-1 py-0.5 bg-green-100 text-green-700"
+                    >
+                      <RotateCcw className="h-2.5 w-2.5" />
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="secondary"
+                      className="absolute -top-2 -right-2 text-[10px] px-1 py-0.5 bg-gray-100 text-gray-600"
+                    >
+                      <Ban className="h-2.5 w-2.5" />
+                    </Badge>
                   )}
                 </div>
-
-                <Button
-                  variant="hero"
-                  className="w-full"
-                  onClick={handlePlaceOrder}
-                  disabled={isProcessing || (deliveryMethod === "seller_delivery" && !address)
-                    
-                  }
-                >
-                  {isProcessing ? "Processing..." : "Place Order"}
-                </Button>
-
-                <p className="text-xs text-center text-muted-foreground">
-                  By placing this order, you agree to our Terms of Service and support local artisans.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-sm truncate">{item.product.name}</h4>
+                  <p className="text-xs text-muted-foreground">Qty: {info.quantity}</p>
+                  <div className="flex items-center gap-2">
+                    {info.savings > 0 ? (
+                      <>
+                        <p className="text-sm font-medium text-primary">
+                          ₹{info.discountedPrice.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-muted-foreground line-through">
+                          ₹{info.originalPrice.toLocaleString()}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm font-medium text-primary">
+                        ₹{info.originalPrice.toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {info.bestDiscount && info.savings > 0 && (
+                      <Badge variant="secondary" className="text-xs gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {getDiscountLabel(info.bestDiscount)} applied
+                      </Badge>
+                    )}
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${item.product.isReturnable ? "text-green-600 border-green-200" : "text-gray-500 border-gray-200"}`}
+                    >
+                      {item.product.isReturnable ? "Returnable" : "Non-returnable"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </main>
 
-      <Footer />
-    </div>
+        {/* Available Offers Section */}
+        {appliedDiscounts.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Tag className="h-4 w-4 text-primary" />
+                Offers Applied
+              </h4>
+              <div className="space-y-2">
+                {appliedDiscounts.map((applied) => (
+                  <div
+                    key={applied.discount.id}
+                    className="flex items-center justify-between p-2 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Percent className="h-4 w-4 text-green-600" />
+                      <div>
+                        <p className="text-xs font-medium text-green-700 dark:text-green-400">
+                          {applied.discount.label || applied.discount.code}
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-500">
+                          {getDiscountLabel(applied.discount)}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-green-700 dark:text-green-400">
+                      -₹{applied.appliedAmount.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        <Separator />
+
+        {/* Pricing */}
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Subtotal</span>
+            <span>₹{totalPrice.toLocaleString()}</span>
+          </div>
+          {totalSavings > 0 && (
+            <div className="flex justify-between text-green-600">
+              <span className="flex items-center gap-1">
+                <Tag className="h-3 w-3" />
+                Discount Savings
+              </span>
+              <span>-₹{totalSavings.toLocaleString()}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Delivery</span>
+            <span>{deliveryCharge === 0 ? "FREE" : `₹${deliveryCharge}`}</span>
+          </div>
+          <Separator />
+          <div className="flex justify-between font-display font-bold text-lg">
+            <span>Total</span>
+            <span className="text-primary">₹{finalTotal.toLocaleString()}</span>
+          </div>
+          {totalSavings > 0 && (
+            <p className="text-xs text-center text-green-600 font-medium">
+              🎉 You're saving ₹{totalSavings.toLocaleString()} on this order!
+            </p>
+          )}
+        </div>
+
+        <Button
+          variant="hero"
+          className="w-full"
+          onClick={handlePlaceOrder}
+          disabled={isProcessing || (deliveryMethod === "seller_delivery" && !address)
+
+          }
+        >
+          {isProcessing ? "Processing..." : "Place Order"}
+        </Button>
+
+        <p className="text-xs text-center text-muted-foreground">
+          By placing this order, you agree to our Terms of Service and support local artisans.
+        </p>
+      </CardContent>
+    </Card>
+          </div >
+        </div >
+      </main >
+
+  <Footer />
+    </div >
   );
 };
 
