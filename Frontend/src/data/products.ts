@@ -164,12 +164,10 @@ export const products: Product[] = [
 ];
 
 export const categories = [
-  "All",
-  "Sarees",
-  "Dupattas",
-  "Stoles",
+  "Textiles",
   "Accessories",
   "Home Decor",
+  "Jewellery"
 ];
 
 export const getProductById = (id: string) => products.find((p) => p.id === id);
