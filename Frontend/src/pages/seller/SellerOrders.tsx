@@ -126,7 +126,20 @@ const SellerOrders = () => {
     try {
       await axios.patch(`${API}/orders/${orderId}/confirm`, {}, { headers: authHeaders });
       fetchOrders();
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        toast({
+          description: "Cannot confirm order: Product is out of stock",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          description: "Something went wrong",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   const handleDispatch = async (orderId: string) => {

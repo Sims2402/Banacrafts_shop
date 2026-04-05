@@ -15,6 +15,8 @@ export interface Product {
   material: string;
   tags: string[];
   artisanId: string;
+  /** Units available (from API inventory). Omit on legacy cached cart items. */
+  quantity?: number;
   inStock: boolean;
   isReturnable: boolean;
   rating: number;
@@ -35,6 +37,7 @@ export const products: Product[] = [
     material: "Khadi Silk",
     tags: ["Handmade", "Eco-friendly", "Limited Edition"],
     artisanId: "1",
+    quantity: 12,
     inStock: true,
     isReturnable: true,
     rating: 4.8,
@@ -53,6 +56,7 @@ export const products: Product[] = [
     material: "Cotton Canvas with Embroidery",
     tags: ["Handmade", "Festive", "Traditional"],
     artisanId: "2",
+    quantity: 8,
     inStock: true,
     isReturnable: true,
     rating: 4.6,
@@ -70,6 +74,7 @@ export const products: Product[] = [
     material: "Pure Cotton",
     tags: ["Handmade", "Eco-friendly", "Natural Dye"],
     artisanId: "1",
+    quantity: 20,
     inStock: true,
     isReturnable: true,
     rating: 4.7,
@@ -87,6 +92,7 @@ export const products: Product[] = [
     material: "Brass",
     tags: ["Handmade", "Spiritual", "Gift Item"],
     artisanId: "3",
+    quantity: 15,
     inStock: true,
     isReturnable: false,
     rating: 4.9,
@@ -105,6 +111,7 @@ export const products: Product[] = [
     material: "Pure Silk",
     tags: ["Handmade", "Traditional", "Festive"],
     artisanId: "2",
+    quantity: 6,
     inStock: true,
     isReturnable: true,
     rating: 4.5,
@@ -122,6 +129,7 @@ export const products: Product[] = [
     material: "Handloom Cotton",
     tags: ["Handmade", "Eco-friendly", "Home Essentials"],
     artisanId: "1",
+    quantity: 10,
     inStock: true,
     isReturnable: false,
     rating: 4.4,

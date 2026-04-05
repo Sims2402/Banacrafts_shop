@@ -56,6 +56,14 @@ const COUPONS: Record<string, number> = {
 
 const RECENTLY_VIEWED_LIMIT = 10;
 
+function maxOrderQty(product: Product): number {
+  if (product.quantity != null && Number.isFinite(product.quantity)) {
+    return Math.max(0, Math.floor(Number(product.quantity)));
+  }
+  if (product.inStock === false) return 0;
+  return Number.POSITIVE_INFINITY;
+}
+
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 /* ════════════════════════════════════════════
@@ -117,17 +125,23 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   /* ════════════ CART ════════════ */
 
   const addToCart = useCallback((product: Product, quantity = 1) => {
+    const cap = maxOrderQty(product);
+    if (cap <= 0) return;
+
     setItems(prev => {
       const id = getProductId(product);
       const existing = prev.find(item => getProductId(item.product) === id);
       if (existing) {
+        const next = existing.quantity + quantity;
+        const clamped = Math.min(next, cap);
         return prev.map(item =>
           getProductId(item.product) === id
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: clamped }
             : item
         );
       }
-      return [...prev, { product, quantity, addedAt: Date.now() }];
+      const initial = Math.min(quantity, cap);
+      return [...prev, { product, quantity: initial, addedAt: Date.now() }];
     });
   }, []);
 
@@ -141,9 +155,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     setItems(prev =>
-      prev.map(item =>
-        getProductId(item.product) === productId ? { ...item, quantity } : item
-      )
+      prev.flatMap(item => {
+        if (getProductId(item.product) !== productId) return [item];
+        const cap = maxOrderQty(item.product);
+        const clamped = Math.min(quantity, cap);
+        if (clamped <= 0) return [];
+        return [{ ...item, quantity: clamped }];
+      })
     );
   }, [removeFromCart]);
 

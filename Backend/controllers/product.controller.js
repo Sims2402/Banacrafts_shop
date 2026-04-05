@@ -2,6 +2,7 @@ import Product from "../models/Product.js";
 import cloudinary from "../config/cloudinary.js";
 import mongoose from "mongoose";
 import { getFinalPrice } from "../utils/priceCalculator.js";
+import { parseProductTags } from "../utils/parseProductTags.js";
 
 // ================= CREATE PRODUCT =================
 export const createProduct = async (req, res) => {
@@ -19,6 +20,16 @@ export const createProduct = async (req, res) => {
 
     if (!name || !description || !price || !category) {
       return res.status(400).json({ message: "Required fields missing" });
+    }
+
+    if (req.body.quantity === undefined || req.body.quantity === "") {
+      return res.status(400).json({ message: "quantity is required" });
+    }
+    const quantity = Number(req.body.quantity);
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      return res.status(400).json({
+        message: "quantity must be a non-negative whole number"
+      });
     }
 
     let uploadedImages = [];
@@ -50,30 +61,32 @@ export const createProduct = async (req, res) => {
       return res.status(400).json({ message: "At least one image required" });
     }
 
-    // TAG HANDLING (both styles merged)
-    let parsedTags = [];
-    if (tags) {
-      try {
-        parsedTags = typeof tags === "string" ? tags.split(",") : JSON.parse(tags);
-      } catch {
-        parsedTags = [];
-      }
-    }
+    const parsedTags = parseProductTags(tags ?? req.body.tags);
+
+    const priceNum = Number(price);
+    const disc =
+      discountPercentage != null && discountPercentage !== ""
+        ? Number(discountPercentage)
+        : 0;
+    const orig =
+      req.body.originalPrice != null && req.body.originalPrice !== ""
+        ? Number(req.body.originalPrice)
+        : undefined;
 
     const product = new Product({
-      ...req.body,
       name,
       description,
-      price,
+      price: priceNum,
       material,
       category,
       tags: parsedTags,
-      returnable,
-      discountPercentage,
+      returnable: returnable !== false && returnable !== "false",
+      discountPercentage: Number.isFinite(disc) && disc >= 0 ? disc : 0,
+      originalPrice:
+        orig !== undefined && Number.isFinite(orig) && orig >= 0 ? orig : undefined,
+      quantity,
       images: uploadedImages,
       seller: req.user?._id || req.body.seller,
-
-      // rating defaults
       ratings: [],
       numRatings: 0,
       rating: 0
@@ -161,11 +174,32 @@ export const getSellerProducts = async (req, res) => {
 // ================= UPDATE =================
 export const updateProduct = async (req, res) => {
   try {
-    const { ratings: _r, rating: _avg, numRatings: _n, ...safeBody } = req.body;
+    const {
+      ratings: _r,
+      rating: _avg,
+      numRatings: _n,
+      inStock: _i,
+      available: _a,
+      ...safeBody
+    } = req.body;
+
+    if (safeBody.quantity !== undefined) {
+      const q = Number(safeBody.quantity);
+      if (!Number.isInteger(q) || q < 0) {
+        return res.status(400).json({
+          message: "quantity must be a non-negative whole number"
+        });
+      }
+      safeBody.quantity = q;
+    }
+
+    if (safeBody.tags !== undefined) {
+      safeBody.tags = parseProductTags(safeBody.tags);
+    }
 
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
-      safeBody,
+      { $set: safeBody },
       { new: true }
     );
 

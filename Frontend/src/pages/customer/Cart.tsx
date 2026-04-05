@@ -7,6 +7,14 @@ import Footer from "@/components/layout/Footer";
 import { useCart } from "@/context/CartContext";
 const getProductId = (product: any) => product._id || product.id;
 
+function maxLineQty(product: { quantity?: number; inStock?: boolean }) {
+  if (product.quantity != null && Number.isFinite(product.quantity)) {
+    return Math.max(0, Math.floor(Number(product.quantity)));
+  }
+  if (product.inStock === false) return 0;
+  return Number.POSITIVE_INFINITY;
+}
+
 const Cart = () => {
   const { items, updateQuantity, removeFromCart, totalPrice, clearCart } = useCart();
 
@@ -35,32 +43,70 @@ const Cart = () => {
           <h1 className="font-heading text-3xl font-bold mb-8">Shopping Cart</h1>
           <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-4">
-              {items.map(({ product, quantity }) => (
-<div
-  key={getProductId(product)
-}
-  className="flex gap-4 p-4 bg-card rounded-xl border border-border"
->
-                  <img src={product.image} alt={product.name} className="h-24 w-24 rounded-lg object-cover" />
-                  <div className="flex-1">
-                    <Link to={`/products/${getProductId(product)
-}`} className="font-heading font-semibold hover:text-primary">{product.name}</Link>
-                    <p className="text-sm text-muted-foreground">{product.category}</p>
-                    <p className="font-semibold text-primary mt-1">₹{product.price.toLocaleString()}</p>
-                  </div>
-                  <div className="flex flex-col items-end justify-between">
-                    <button onClick={() => removeFromCart(getProductId(product)
-)} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
-                    <div className="flex items-center border border-border rounded">
-<button onClick={() => updateQuantity(getProductId(product)
-, quantity - 1)} className="p-1 hover:bg-muted"><Minus className="h-4 w-4" /></button>
-                      <span className="px-3 text-sm">{quantity}</span>
-<button onClick={() => updateQuantity(getProductId(product)
-, quantity + 1)} className="p-1 hover:bg-muted"><Plus className="h-4 w-4" /></button>
+              {items.map(({ product, quantity }) => {
+                const cap = maxLineQty(product);
+                const atMax = Number.isFinite(cap) && quantity >= cap;
+                return (
+                  <div
+                    key={getProductId(product)}
+                    className="flex gap-4 p-4 bg-card rounded-xl border border-border"
+                  >
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="h-24 w-24 rounded-lg object-cover"
+                    />
+                    <div className="flex-1">
+                      <Link
+                        to={`/products/${getProductId(product)}`}
+                        className="font-heading font-semibold hover:text-primary"
+                      >
+                        {product.name}
+                      </Link>
+                      <p className="text-sm text-muted-foreground">{product.category}</p>
+                      <p className="font-semibold text-primary mt-1">
+                        ₹{product.price.toLocaleString()}
+                      </p>
+                      {Number.isFinite(cap) && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {cap > 0 ? `${cap} available` : "Out of stock"}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end justify-between">
+                      <button
+                        type="button"
+                        onClick={() => removeFromCart(getProductId(product))}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <div className="flex items-center border border-border rounded">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateQuantity(getProductId(product), quantity - 1)
+                          }
+                          className="p-1 hover:bg-muted"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <span className="px-3 text-sm">{quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateQuantity(getProductId(product), quantity + 1)
+                          }
+                          disabled={atMax}
+                          className="p-1 hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="bg-card p-6 rounded-xl border border-border h-fit sticky top-24">
               <h2 className="font-heading text-xl font-semibold mb-4">Order Summary</h2>

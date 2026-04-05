@@ -6,34 +6,42 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/common/ProductCard";
 import { api } from "@/api/api";
+import { mapMongoDocToProduct } from "@/lib/mapMongoProduct";
+import { normalizeProductTags } from "@/lib/normalizeProductTags";
+import type { Product } from "@/data/products";
 import { useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { useState } from "react";
 
 const ProductDetail = () => {
   const { id } = useParams();
-const [product, setProduct] = useState<any | null>(null);
-const [loading, setLoading] = useState(true);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-  const fetchProduct = async () => {
-    try {
-      const data = await api.get(`/products/${id}`);
-      setProduct(data);
-    } catch (error) {
-      console.error("Failed to fetch product", error);
-      setProduct(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const data = await api.get<Record<string, unknown>>(`/products/${id}`);
+        setProduct(mapMongoDocToProduct(data));
+      } catch (error) {
+        console.error("Failed to fetch product", error);
+        setProduct(null);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (id) fetchProduct();
-}, [id]);
+    if (id) fetchProduct();
+  }, [id]);
 
   const { addToCart, addToWishlist, removeFromWishlist, isInWishlist } = useCart();
   const [quantity, setQuantity] = useState(1);
-if (loading) {
+
+  useEffect(() => {
+    setQuantity(1);
+  }, [id]);
+
+  if (loading) {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <p>Loading product...</p>
@@ -67,9 +75,25 @@ if (loading) {
 
   const inWishlist = isInWishlist(product.id);
 
+  const hasNumericStock =
+    product.quantity != null && Number.isFinite(product.quantity);
+  const stockQty = hasNumericStock
+    ? Math.max(0, Math.floor(Number(product.quantity)))
+    : 0;
+  const canPurchase = hasNumericStock ? stockQty > 0 : product.inStock !== false;
+
+  useEffect(() => {
+    if (!hasNumericStock) return;
+    if (stockQty > 0) {
+      setQuantity((q) => Math.min(Math.max(1, q), stockQty));
+    }
+  }, [hasNumericStock, stockQty]);
+
   const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
+
+  const displayTags = normalizeProductTags(product.tags);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -91,7 +115,7 @@ if (loading) {
             {/* Image */}
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-muted">
               <img
-                src={product.images?.[0]?.url || "/placeholder.png"}
+                src={product.image || "/placeholder.png"}
                 alt={product.name}
                 className="h-full w-full object-cover"
               />
@@ -115,7 +139,7 @@ if (loading) {
               </div>
 
               {/* Rating */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <div className="flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
                     <Star
@@ -130,6 +154,13 @@ if (loading) {
                 </div>
                 <span className="text-sm text-muted-foreground">
                   ({product.reviews} reviews)
+                </span>
+                <span className="text-sm text-muted-foreground w-full sm:w-auto">
+                  {!canPurchase
+                    ? "Out of stock"
+                    : hasNumericStock
+                      ? `${stockQty} available`
+                      : "In stock"}
                 </span>
               </div>
 
@@ -147,8 +178,8 @@ if (loading) {
 
               {/* Tags */}
               <div className="flex flex-wrap gap-2">
-                {product.tags.map((tag) => (
-                  <span key={tag} className="heritage-badge">
+                {displayTags.map((tag, i) => (
+                  <span key={`${i}-${tag}`} className="heritage-badge">
                     {tag}
                   </span>
                 ))}
@@ -185,18 +216,35 @@ if (loading) {
               )}
                 */}
               {/* Quantity & Add to Cart */}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center border border-border rounded-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div
+                  className={`flex items-center border border-border rounded-lg w-fit ${
+                    !canPurchase ? "opacity-50 pointer-events-none" : ""
+                  }`}
+                >
                   <button
+                    type="button"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="px-4 py-2 text-lg hover:bg-muted transition-colors"
+                    disabled={!canPurchase}
+                    className="px-4 py-2 text-lg hover:bg-muted transition-colors disabled:opacity-50"
                   >
                     -
                   </button>
-                  <span className="px-4 py-2 font-medium">{quantity}</span>
+                  <span className="px-4 py-2 font-medium">{canPurchase ? quantity : 0}</span>
                   <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="px-4 py-2 text-lg hover:bg-muted transition-colors"
+                    type="button"
+                    onClick={() =>
+                      setQuantity(
+                        hasNumericStock
+                          ? Math.min(stockQty, quantity + 1)
+                          : quantity + 1
+                      )
+                    }
+                    disabled={
+                      !canPurchase ||
+                      (hasNumericStock && quantity >= stockQty)
+                    }
+                    className="px-4 py-2 text-lg hover:bg-muted transition-colors disabled:opacity-50"
                   >
                     +
                   </button>
@@ -206,10 +254,11 @@ if (loading) {
                   variant="heritage"
                   size="lg"
                   className="flex-1 gap-2"
-                  onClick={() => addToCart(product, quantity)}
+                  disabled={!canPurchase}
+                  onClick={() => canPurchase && addToCart(product, quantity)}
                 >
                   <ShoppingCart className="h-5 w-5" />
-                  Add to Cart
+                  {canPurchase ? "Add to Cart" : "Out of Stock"}
                 </Button>
 
                 <Button

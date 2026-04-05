@@ -20,6 +20,7 @@ import { Plus, Search, Edit, Trash2, Eye, RotateCcw, ImagePlus, Star } from "luc
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
+import { normalizeProductTags } from "@/lib/normalizeProductTags";
 
 const API = "http://localhost:5000/api";
 
@@ -28,24 +29,34 @@ const getAuthHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,
 });
 
-const formatProduct = (p: any) => ({
-  id: p._id,
-  name: p.name,
-  description: p.description,
-  price: p.price,
-  finalPrice: p.finalPrice,
-  originalPrice: p.originalPrice,
-  category: p.category,
-  material: p.material,
-  image: p.images?.[0]?.url || "/placeholder.svg",
-  images: [p.images?.[0]?.url || "/placeholder.svg"],
-  tags: p.tags || ["Handmade"],
-  inStock: p.inStock,
-  isReturnable: p.returnable,
-  rating: typeof p.rating === "number" ? p.rating : 0,
-  numRatings: typeof p.numRatings === "number" ? p.numRatings : 0,
-  returnPolicy: p.returnable ? "7 days return policy" : "No return available",
-});
+const formatProduct = (p: any) => {
+  const qty =
+    typeof p.quantity === "number" && Number.isFinite(p.quantity)
+      ? Math.max(0, Math.floor(p.quantity))
+      : 0;
+  return {
+    id: p._id,
+    name: p.name,
+    description: p.description,
+    price: p.price,
+    finalPrice: p.finalPrice,
+    originalPrice: p.originalPrice,
+    category: p.category,
+    material: p.material,
+    image: p.images?.[0]?.url || "/placeholder.svg",
+    images: [p.images?.[0]?.url || "/placeholder.svg"],
+    tags: (() => {
+      const t = normalizeProductTags(p.tags);
+      return t.length ? t : ["Handmade"];
+    })(),
+    quantity: qty,
+    inStock: qty > 0,
+    isReturnable: p.returnable,
+    rating: typeof p.rating === "number" ? p.rating : 0,
+    numRatings: typeof p.numRatings === "number" ? p.numRatings : 0,
+    returnPolicy: p.returnable ? "7 days return policy" : "No return available",
+  };
+};
 
 const SellerProducts = () => {
   const { user } = useAuth();
@@ -107,6 +118,15 @@ const SellerProducts = () => {
       return;
     }
 
+    const quantity = Number(formData.get("quantity"));
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      toast({
+        title: "Invalid quantity",
+        description: "Enter a whole number 0 or greater",
+      });
+      return;
+    }
+
     const sendData = new FormData();
     sendData.append("name",          formData.get("name") as string);
     sendData.append("description",   formData.get("description") as string);
@@ -115,10 +135,11 @@ const SellerProducts = () => {
     sendData.append("category",      formData.get("category") as string);
     sendData.append("material",      formData.get("material") as string);
     sendData.append("returnable",    String(formData.get("isReturnable") === "on"));
+    sendData.append("quantity",      String(quantity));
 
     const tagsInput = (formData.get("tags") as string) || "";
-    if (tagsInput) {
-      sendData.append("tags", JSON.stringify(tagsInput.split(",").map((t) => t.trim())));
+    if (tagsInput.trim()) {
+      sendData.append("tags", tagsInput.trim());
     }
 
     const fileInput = e.currentTarget.querySelector('input[type="file"]') as HTMLInputElement;
@@ -170,24 +191,6 @@ const SellerProducts = () => {
     }
   };
 
-  /* ── TOGGLE STOCK ── */
-  const handleToggleStock = async (productId: string, currentValue: boolean) => {
-    const token = user?.token;
-    if (!token) return;
-
-    try {
-      // ✅ correct route: PUT /api/products/:id
-      await fetch(`${API}/products/${productId}`, {
-        method: "PUT",
-        headers: { ...getAuthHeaders(token), "Content-Type": "application/json" },
-        body: JSON.stringify({ inStock: !currentValue }),
-      });
-      fetchProducts();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   /* ── TOGGLE RETURNABLE ── */
   const handleToggleReturnable = async (productId: string, currentValue: boolean) => {
     const token = user?.token;
@@ -215,9 +218,14 @@ const SellerProducts = () => {
     const formData    = new FormData(e.currentTarget);
     const price         = Number(formData.get("price"));
     const originalPrice = Number(formData.get("originalPrice"));
+    const quantity      = Number(formData.get("quantity"));
 
     if (price <= 0)       { alert("Price must be greater than 0"); return; }
     if (originalPrice < 0){ alert("Original price cannot be negative"); return; }
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      toast({ title: "Invalid quantity", description: "Use a whole number ≥ 0" });
+      return;
+    }
 
     try {
       // ✅ correct route: PUT /api/products/:id
@@ -229,6 +237,7 @@ const SellerProducts = () => {
           description:   formData.get("description"),
           price,
           originalPrice,
+          quantity,
           category:      formData.get("category"),
           material:      formData.get("material"),
           returnable:    formData.get("isReturnable") === "on",
@@ -301,7 +310,7 @@ const SellerProducts = () => {
                   <Label htmlFor="description">Description</Label>
                   <Textarea id="description" name="description" required />
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="price">Price (₹)</Label>
                     <Input id="price" name="price" type="number" min="1" required />
@@ -309,6 +318,18 @@ const SellerProducts = () => {
                   <div className="space-y-2">
                     <Label htmlFor="originalPrice">Original Price (₹)</Label>
                     <Input id="originalPrice" name="originalPrice" type="number" min="0" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="quantity">Stock quantity</Label>
+                    <Input
+                      id="quantity"
+                      name="quantity"
+                      type="number"
+                      min="0"
+                      step="1"
+                      required
+                      placeholder="0"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="material">Material</Label>
@@ -412,11 +433,13 @@ const SellerProducts = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Switch checked={product.inStock}
-                            onCheckedChange={() => handleToggleStock(product.id, product.inStock)} />
-                          <span className="text-xs">{product.inStock ? "In Stock" : "Out of Stock"}</span>
-                        </div>
+                        <span className="text-sm">
+                          {product.quantity > 0 ? (
+                            <span className="text-foreground">{product.quantity} in stock</span>
+                          ) : (
+                            <span className="text-muted-foreground">Out of stock</span>
+                          )}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -429,8 +452,8 @@ const SellerProducts = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1 flex-wrap">
-                          {product.tags.slice(0, 2).map((tag: string) => (
-                            <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                          {product.tags.slice(0, 2).map((tag: string, i: number) => (
+                            <Badge key={`${i}-${tag}`} variant="outline" className="text-xs">{tag}</Badge>
                           ))}
                         </div>
                       </TableCell>
@@ -472,7 +495,11 @@ const SellerProducts = () => {
               <p className="text-sm text-muted-foreground">{viewProduct.description}</p>
               <div className="flex justify-between">
                 <span>₹{viewProduct.price}</span>
-                <span className="text-green-600">{viewProduct.inStock ? "In Stock" : "Out of Stock"}</span>
+                <span className={viewProduct.quantity > 0 ? "text-green-600" : "text-muted-foreground"}>
+                  {viewProduct.quantity > 0
+                    ? `${viewProduct.quantity} in stock`
+                    : "Out of stock"}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
@@ -481,7 +508,7 @@ const SellerProducts = () => {
               </div>
               <div className="flex gap-2 flex-wrap">
                 {viewProduct.tags.map((tag: string, i: number) => (
-                  <Badge key={i}>{tag}</Badge>
+                  <Badge key={`${i}-${tag}`}>{tag}</Badge>
                 ))}
               </div>
               <div className="text-sm">Returnable: {viewProduct.isReturnable ? "Yes" : "No"}</div>
@@ -500,6 +527,17 @@ const SellerProducts = () => {
               <Textarea name="description" defaultValue={editingProduct.description} />
               <Input name="price"         type="number" min="1"  defaultValue={editingProduct.price} />
               <Input name="originalPrice" type="number" min="0"  defaultValue={editingProduct.originalPrice} />
+              <div className="space-y-2">
+                <Label htmlFor="edit-quantity">Stock quantity</Label>
+                <Input
+                  id="edit-quantity"
+                  name="quantity"
+                  type="number"
+                  min="0"
+                  step="1"
+                  defaultValue={editingProduct.quantity}
+                />
+              </div>
               <Input name="material"      defaultValue={editingProduct.material} />
               <Input name="tags"          defaultValue={editingProduct.tags.join(", ")} />
               <div className="flex items-center gap-2">

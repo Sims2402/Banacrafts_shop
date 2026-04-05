@@ -4,6 +4,8 @@ import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/common/ProductCard";
 import { categories } from "@/data/products";
 import { api } from "@/api/api";
+import { mapMongoDocToProduct } from "@/lib/mapMongoProduct";
+import type { Product } from "@/data/products";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,20 +14,24 @@ const Products = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("featured");
 
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
 
-useEffect(() => {
-  const fetchProducts = async () => {
-    try {
-      const data = await api.get<any[]>("/products");
-      setProducts(data);
-    } catch (error) {
-      console.error("Failed to fetch products", error);
-    }
-  };
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const data = await api.get<Record<string, unknown>[]>("/products");
+        setProducts(
+          Array.isArray(data)
+            ? data.map((doc) => mapMongoDocToProduct(doc))
+            : []
+        );
+      } catch (error) {
+        console.error("Failed to fetch products", error);
+      }
+    };
 
-  fetchProducts();
-}, []);
+    fetchProducts();
+  }, []);
 
   const filteredProducts = selectedCategory === "All"
     ? products

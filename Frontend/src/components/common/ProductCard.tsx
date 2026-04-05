@@ -5,7 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Product } from "@/data/products";
 import { useCart } from "@/context/CartContext";
 import { cn } from "@/lib/utils";
+import { normalizeProductTags } from "@/lib/normalizeProductTags";
 const getProductId = (product: any) => product._id || product.id;
+
+function cardImageSrc(product: Product & { images?: { url: string }[] }) {
+  if (product.image) return product.image;
+  const first = product.images?.[0];
+  if (typeof first === "string") return first;
+  return first?.url || "/placeholder.png";
+}
 
 interface ProductCardProps {
   product: Product & {
@@ -28,10 +36,20 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, className }) => {
     }
   };
 
+  const hasNumericStock =
+    product.quantity != null && Number.isFinite(product.quantity);
+  const stockQty = hasNumericStock
+    ? Math.max(0, Math.floor(Number(product.quantity)))
+    : null;
+  const canAdd = hasNumericStock ? stockQty! > 0 : product.inStock !== false;
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
-    addToCart(product);
+    if (!canAdd) return;
+    addToCart(product, 1);
   };
+
+  const tags = normalizeProductTags(product.tags);
 
   const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -46,9 +64,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, className }) => {
         {/* Image Container */}
         <div className="relative aspect-[4/5] overflow-hidden bg-muted">
           <img
-          src={product.images?.[0]?.url || "/placeholder.png"}
-          alt={product.name}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            src={cardImageSrc(product)}
+            alt={product.name}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
 
           
@@ -59,7 +77,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, className }) => {
                 {discount}% OFF
               </span>
             )}
-            {product.tags.includes("Limited Edition") && (
+            {tags.includes("Limited Edition") && (
               <span className="px-2 py-1 bg-accent text-accent-foreground text-xs font-semibold rounded">
                 Limited Edition
               </span>
@@ -84,10 +102,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, className }) => {
             <Button
               variant="heritage"
               className="w-full rounded-none"
+              disabled={!canAdd}
               onClick={handleAddToCart}
             >
               <ShoppingCart className="h-4 w-4" />
-              Add to Cart
+              {canAdd ? "Add to Cart" : "Out of Stock"}
             </Button>
           </div>
         </div>
@@ -123,10 +142,18 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, className }) => {
             )}
           </div>
 
+          <p className="text-xs text-muted-foreground mt-1">
+            {!canAdd
+              ? "Out of stock"
+              : hasNumericStock
+                ? `${stockQty} available`
+                : "In stock"}
+          </p>
+
           {/* Tags */}
           <div className="flex flex-wrap gap-1 mt-3">
-            {product.tags.slice(0, 2).map((tag) => (
-              <span key={tag} className="heritage-badge text-xs">
+            {tags.slice(0, 2).map((tag, i) => (
+              <span key={`${i}-${tag}`} className="heritage-badge text-xs">
                 {tag}
               </span>
             ))}

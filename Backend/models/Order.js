@@ -42,7 +42,7 @@ const orderSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ["UPI", "Cash"],
+      enum: ["UPI", "Cash", "Online"],
     },
 
     paymentStatus: {
@@ -60,6 +60,15 @@ const orderSchema = new mongoose.Schema(
     totalPrice: {
       type: Number,
       required: true,
+    },
+
+    /**
+     * When true, checkout already adjusted product stock for this order.
+     * Legacy orders omit this; confirm may deduct once when moving to Confirmed.
+     */
+    inventoryCommitted: {
+      type: Boolean,
+      default: false,
     },
 
     // ================= CANCEL =================
@@ -97,6 +106,18 @@ const orderSchema = new mongoose.Schema(
     strict: false,
   }
 );
+
+orderSchema.pre("save", function (next) {
+  if (this.orderItems && this.orderItems.length) {
+    for (const item of this.orderItems) {
+      const q = Number(item.quantity);
+      if (!Number.isInteger(q) || q < 1) {
+        item.quantity = 1;
+      }
+    }
+  }
+  next();
+});
 
 // ✅ THIS IS IMPORTANT (clean export)
 const Order = mongoose.model("Order", orderSchema);

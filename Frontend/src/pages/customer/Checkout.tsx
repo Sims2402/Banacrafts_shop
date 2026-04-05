@@ -139,6 +139,17 @@ const Checkout = () => {
   const subtotalAfterDiscount = totalPrice - totalSavings;
   const finalTotal = subtotalAfterDiscount + deliveryCharge;
 
+  const cannotCheckoutStock = useMemo(() => {
+    return items.some((item) => {
+      const p = item.product;
+      if (p.quantity != null && Number.isFinite(p.quantity)) {
+        const cap = Math.max(0, Math.floor(Number(p.quantity)));
+        return cap === 0 || item.quantity > cap;
+      }
+      return p.inStock === false;
+    });
+  }, [items]);
+
   // Get all unique applied discounts for display
   const appliedDiscounts = useMemo((): AppliedDiscount[] => {
     const discountMap = new Map<string, AppliedDiscount>();
@@ -411,7 +422,15 @@ navigate("/order/success", {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-sm truncate">{item.product.name}</h4>
-                          <p className="text-xs text-muted-foreground">Qty: {info.quantity}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Qty: {info.quantity}
+                            {item.product.quantity != null &&
+                              Number.isFinite(item.product.quantity) && (
+                                <span className="ml-1">
+                                  · {Math.max(0, Math.floor(item.product.quantity))} available
+                                </span>
+                              )}
+                          </p>
                           <div className="flex items-center gap-2">
                             {info.savings > 0 ? (
                               <>
@@ -521,10 +540,20 @@ navigate("/order/success", {
                   variant="hero"
                   className="w-full"
                   onClick={handlePlaceOrder}
-                  disabled={isProcessing || (deliveryMethod === "seller_delivery" && !address)}
+                  disabled={
+                    isProcessing ||
+                    cannotCheckoutStock ||
+                    (deliveryMethod === "seller_delivery" && !address)
+                  }
                 >
                   {isProcessing ? "Processing..." : "Place Order"}
                 </Button>
+
+                {cannotCheckoutStock && (
+                  <p className="text-xs text-center text-destructive">
+                    Remove out-of-stock items or reduce quantities to match availability.
+                  </p>
+                )}
 
                 <p className="text-xs text-center text-muted-foreground">
                   By placing this order, you agree to our Terms of Service and support local artisans.

@@ -18,7 +18,6 @@ const productSchema = new mongoose.Schema(
       required: true
     },
 
-    // from second schema (useful for discounts)
     originalPrice: {
       type: Number
     },
@@ -44,15 +43,12 @@ const productSchema = new mongoose.Schema(
       default: true
     },
 
-    // availability fields (merged)
-    available: {
-      type: Boolean,
-      default: true
-    },
-
-    inStock: {
-      type: Boolean,
-      default: true
+    /** Stock count; inStock / available are derived virtuals (quantity > 0). */
+    quantity: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0
     },
 
     seller: {
@@ -66,7 +62,6 @@ const productSchema = new mongoose.Schema(
       default: 0
     },
 
-    // ================= RATINGS SYSTEM =================
     ratings: [
       {
         user: {
@@ -93,8 +88,18 @@ const productSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    strict: false // safe during merge phase
+    strict: false,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
+
+productSchema.virtual("inStock").get(function () {
+  return (this.quantity ?? 0) > 0;
+});
+
+productSchema.virtual("available").get(function () {
+  return (this.quantity ?? 0) > 0;
+});
 
 export default mongoose.model("Product", productSchema);

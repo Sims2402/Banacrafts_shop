@@ -1,4 +1,5 @@
 import type { Product } from "@/data/products";
+import { normalizeProductTags } from "@/lib/normalizeProductTags";
 
 /** Maps a Mongo-backed product (API) to the `Product` shape used by cards and detail. */
 export function mapMongoDocToProduct(
@@ -22,6 +23,11 @@ export function mapMongoDocToProduct(
 
   const finalPrice = p.finalPrice != null ? Number(p.finalPrice) : null;
   const basePrice = Number(p.price) || 0;
+  const qtyRaw = p.quantity;
+  const quantity =
+    typeof qtyRaw === "number" && Number.isFinite(qtyRaw)
+      ? Math.max(0, Math.floor(qtyRaw))
+      : 0;
 
   return {
     id: String(p._id),
@@ -34,9 +40,10 @@ export function mapMongoDocToProduct(
     images: images.length ? images : primary ? [primary] : [],
     category: String(p.category || ""),
     material: String(p.material || ""),
-    tags: Array.isArray(p.tags) ? (p.tags as string[]) : [],
+    tags: normalizeProductTags(p.tags),
     artisanId,
-    inStock: p.inStock !== false && p.available !== false,
+    quantity,
+    inStock: quantity > 0,
     isReturnable: p.returnable === true,
     rating: typeof p.rating === "number" ? p.rating : 0,
     reviews:
