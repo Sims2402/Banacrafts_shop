@@ -38,9 +38,12 @@ useEffect(() => {
   fetchProducts();
 }, [searchQuery]); // THIS IS CRITICAL
 
-  const filteredProducts = selectedCategory === "All"
-    ? products
-    : products.filter((p) => p.category === selectedCategory);
+  const filteredProducts =
+  selectedCategory === "All"
+    ? products.filter((p) => p.quantity > 0)
+    : products.filter(
+        (p) => p.category === selectedCategory && p.quantity > 0
+      );
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (sortBy) {
