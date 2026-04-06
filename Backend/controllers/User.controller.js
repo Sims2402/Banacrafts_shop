@@ -1,8 +1,7 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import nodemailer from "nodemailer";
-
+import { buildMailer } from "../utils/mailer.js"; 
 // ================= HELPER =================
 function toPublicUser(userDoc) {
   if (!userDoc) return null;
@@ -24,7 +23,7 @@ function toPublicUser(userDoc) {
 }
 
 // ================= UPDATE PROFILE =================
-export const updateProfile = async (req, res) => {
+export const updateUserProfile = async (req, res) => {
   try {
     const userId = req.params.userId || req.user._id;
     const { name, phone, address, avatar } = req.body;
@@ -34,9 +33,7 @@ export const updateProfile = async (req, res) => {
     }
 
     if (phone && !/^\d{10}$/.test(phone)) {
-      return res.status(400).json({
-        message: "Phone must be exactly 10 digits"
-      });
+      return res.status(400).json({ message: "Phone must be 10 digits" });
     }
 
     const updateFields = {
@@ -55,10 +52,6 @@ export const updateProfile = async (req, res) => {
       { new: true }
     );
 
-    if (!updated) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
     res.json(toPublicUser(updated));
 
   } catch (e) {
@@ -68,6 +61,7 @@ export const updateProfile = async (req, res) => {
 export const resetPasswordWithToken = async (req, res) => {
   try {
     const { email, resetToken, newPassword } = req.body;
+    const emailStr = String(email).trim().toLowerCase();
 
     if (!email || !resetToken || !newPassword) {
       return res.status(400).json({
@@ -75,7 +69,7 @@ export const resetPasswordWithToken = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: emailStr });
 
     if (!user) {
       return res.status(400).json({ message: "Invalid request" });
@@ -89,8 +83,7 @@ export const resetPasswordWithToken = async (req, res) => {
       return res.status(400).json({ message: "Invalid token" });
     }
 
-    // Update password
-    user.password = newPassword;
+    user.password = String(newPassword).trim();
 
     // Clear reset fields
     user.passwordResetTokenHash = "";
@@ -109,14 +102,18 @@ export const resetPasswordWithToken = async (req, res) => {
 export const changePassword = async (req, res) => {
   try {
     const userId = req.params.userId || req.user._id;
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
+    if (!currentPassword || !newPassword || !confirmPassword) {
       return res.status(400).json({ message: "Fill both fields." });
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({ message: "Min 6 characters." });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
     }
 
     const user = await User.findById(userId);
@@ -128,13 +125,10 @@ export const changePassword = async (req, res) => {
     const isMatch = await bcrypt.compare(currentPassword, user.password);
 
     if (!isMatch) {
-      return res.status(401).json({
-        message: "Current password is incorrect."
-      });
+      return res.status(400).json({ message: "Incorrect current password" });
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
+    user.password = await bcrypt.hash(newPassword, 10);
 
     await user.save();
 
@@ -239,16 +233,18 @@ export const uploadProfilePicture = async (req, res) => {
   }
 };
 
-// ================= OTP + RESET PASSWORD =================
-const otpSecret = () =>
-  process.env.OTP_SECRET || process.env.JWT_SECRET || "dev-secret";
+// ================= OTP HELPERS =================
+function otpSecret() {
+  return process.env.OTP_SECRET || process.env.JWT_SECRET || "dev-secret";
+}
 
-const sha256 = (input) =>
-  crypto.createHash("sha256").update(String(input)).digest("hex");
+function sha256(input) {
+  return crypto.createHash("sha256").update(String(input)).digest("hex");
+}
 
-const makeOtp = () =>
-  String(Math.floor(Math.random() * 1000000)).padStart(6, "0");
-
+function makeOtpCode() {
+  return String(Math.floor(Math.random() * 1000000)).padStart(6, "0");
+}
 // SEND OTP
 export const sendPasswordResetOtp = async (req, res) => {
   try {
@@ -259,25 +255,19 @@ export const sendPasswordResetOtp = async (req, res) => {
       return res.json({ message: "If exists, OTP sent" });
     }
 
-    const code = makeOtp();
+    const code = makeOtpCode();
     const expires = new Date(Date.now() + 10 * 60 * 1000);
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
+    const { transporter, from } = buildMailer();
 
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from,
       to: email,
-      subject: "OTP",
+      subject: "Password Reset OTP",
       text: `Your OTP is ${code}`
     });
 
-    user.passwordResetOtpHash = sha256(code + otpSecret());
+    user.passwordResetOtpHash = sha256(`${code}:${otpSecret()}`);
     user.passwordResetOtpExpiresAt = expires;
 
     await user.save();
@@ -293,19 +283,25 @@ export const sendPasswordResetOtp = async (req, res) => {
 export const verifyPasswordResetOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
+    const emailStr = String(email).trim().toLowerCase();
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: emailStr });
 
     if (!user) return res.status(400).json({ message: "Invalid OTP" });
 
     const valid =
-      user.passwordResetOtpHash === sha256(otp + otpSecret());
+      user.passwordResetOtpHash === sha256(`${otp}:${otpSecret()}`);
 
     if (!valid) {
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
-    res.json({ message: "OTP verified" });
+    const resetToken = crypto.randomBytes(24).toString("hex");
+    user.passwordResetTokenHash = resetToken;
+    user.passwordResetTokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    res.json({ message: "OTP verified", resetToken });
 
   } catch (e) {
     res.status(500).json({ message: e.message });

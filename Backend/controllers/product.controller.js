@@ -3,7 +3,8 @@ import cloudinary from "../config/cloudinary.js";
 import mongoose from "mongoose";
 import { getFinalPrice } from "../utils/priceCalculator.js";
 import { parseProductTags } from "../utils/parseProductTags.js";
-
+// ✅ ADD THESE (seller features)
+import { enrichProductObject, enrichProductsWithPricing } from "../utils/priceCalculator.js";
 // ================= CREATE PRODUCT =================
 export const createProduct = async (req, res) => {
   try {
@@ -138,7 +139,9 @@ export const getProductById = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    const finalPrice = await getFinalPrice(productDoc._id);
+    // ✅ USE seller enrichment (more complete)
+const payload = await enrichProductObject(productDoc);
+res.json(payload);
 
     res.json({
       ...productDoc.toObject(),
@@ -157,12 +160,9 @@ export const getSellerProducts = async (req, res) => {
 
     const products = await Product.find({ seller: sellerId });
 
-    const updated = await Promise.all(
-      products.map(async (p) => {
-        const finalPrice = await getFinalPrice(p._id);
-        return { ...p.toObject(), finalPrice };
-      })
-    );
+    // ✅ USE seller pricing system
+const updatedProducts = await enrichProductsWithPricing(products);
+res.status(200).json(updatedProducts);
 
     res.status(200).json(updated);
 

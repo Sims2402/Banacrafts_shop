@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
+const API = "http://localhost:5000/api";
+
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -40,18 +42,32 @@ const ForgotPassword = () => {
     }
 
     setIsLoading(true);
-    
-    // Simulate sending OTP
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    toast({
-      title: "OTP Sent!",
-      description: "Check your email for the verification code.",
-    });
-    
-    // Navigate to OTP verification with email in state
-    navigate("/verify-otp", { state: { email } });
-    setIsLoading(false);
+    try {
+      const res = await fetch(`${API}/users/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData?.message || "Failed to send OTP");
+      }
+
+      toast({
+        title: "OTP Sent!",
+        description: "Check your email for the verification code.",
+      });
+      navigate("/verify-otp", { state: { email: email.trim().toLowerCase() } });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to send OTP.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

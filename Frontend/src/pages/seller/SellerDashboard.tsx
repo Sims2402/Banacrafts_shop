@@ -1,11 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import StatsCard from "@/components/common/StatsCard";
-import OrderStatusBadge from "@/components/common/OrderStatusBadge";
-import PaymentStatusBadge from "@/components/common/PaymentStatusBadge";
 import RevenueChart from "@/components/charts/RevenueChart";
-import OrdersChart from "@/components/charts/OrdersChart";
 import TopProductsChart from "@/components/charts/TopProductsChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +10,12 @@ import { IndianRupee, ShoppingBag, Package, Star } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const API = "http://localhost:5000/api";
+const DEFAULT_WEEKLY_REVENUE = [
+  { name: "Week 1", revenue: 0 },
+  { name: "Week 2", revenue: 0 },
+  { name: "Week 3", revenue: 0 },
+  { name: "Week 4", revenue: 0 },
+];
 
 const SellerDashboard = () => {
   const { user } = useAuth();
@@ -29,6 +32,10 @@ const SellerDashboard = () => {
       user?.token ??
       JSON.parse(localStorage.getItem("banacrafts_user") || "{}").token ??
       "";
+    const sellerId =
+      user?.id ??
+      JSON.parse(localStorage.getItem("banacrafts_user") || "{}")?.user?._id ??
+      "";
 
     if (!token) {
       setError("Session expired. Please log in again.");
@@ -43,16 +50,19 @@ const SellerDashboard = () => {
       setError(null);
 
       try {
-        const [ordersRes, productsRes] = await Promise.all([
+        const [ordersRes, productsRes, revenueRes] = await Promise.all([
           fetch(`${API}/orders/seller`, { headers }),
           fetch(`${API}/products/seller/me`, { headers }),
+          fetch(`${API}/dashboard/seller/dashboard/revenue/${sellerId}`, { headers }),
         ]);
 
         if (!ordersRes.ok) throw new Error("Failed to fetch orders");
         if (!productsRes.ok) throw new Error("Failed to fetch products");
+        if (!revenueRes.ok) throw new Error("Failed to fetch revenue");
 
         const ordersData = await ordersRes.json();
         const productsData = await productsRes.json();
+        const revenueResponse = await revenueRes.json();
 
         /* ✅ FIX: CALCULATE RATING */
         const avgRating =
@@ -73,21 +83,11 @@ const SellerDashboard = () => {
         /* ORDERS */
         setOrders(ordersData);
 
-        /* REVENUE */
-        const revenueMap: Record<string, number> = {};
-        ordersData.forEach((o: any) => {
-          const month = new Date(o.createdAt).toLocaleString("default", {
-            month: "short",
-          });
-          revenueMap[month] =
-            (revenueMap[month] || 0) + (o.totalPrice || 0);
-        });
-
+        /* REVENUE (last 4 weeks from dashboard API) */
         setRevenue(
-          Object.entries(revenueMap).map(([name, revenue]) => ({
-            name,
-            revenue,
-          }))
+          Array.isArray(revenueResponse?.revenue)
+            ? revenueResponse.revenue
+            : DEFAULT_WEEKLY_REVENUE
         );
 
         /* TOP PRODUCTS */
@@ -153,7 +153,7 @@ const SellerDashboard = () => {
             {/* CHARTS */}
             <div className="grid lg:grid-cols-3 gap-6 mb-8">
               <div className="lg:col-span-2">
-                <RevenueChart title="Revenue" data={revenue} />
+                <RevenueChart title="Revenue (Last 4 Weeks)" data={revenue} />
               </div>
               <TopProductsChart title="Top Products" data={topProducts} />
             </div>

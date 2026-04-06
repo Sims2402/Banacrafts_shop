@@ -1,6 +1,6 @@
 import express from "express";
 import {
-  updateProfile,
+  updateUserProfile,
   changePassword,
   registerUser,
   loginUser,
@@ -8,7 +8,7 @@ import {
   verifyPasswordResetOtp,
   resetPasswordWithToken,
   uploadProfilePicture
-} from "../controllers/user.controller.js";
+} from "../controllers/User.controller.js";
 
 import { protect } from "../middleware/authMiddleware.js";
 import upload from "../middleware/upload.middleware.js"; // reuse same multer
@@ -24,7 +24,7 @@ router.post("/verify-otp", verifyPasswordResetOtp);
 router.post("/reset-password", resetPasswordWithToken);
 
 // ================= PROFILE =================
-router.put("/profile", protect, updateProfile);
+router.put("/profile", protect, updateUserProfile);
 router.put("/change-password", protect, changePassword);
 
 // ================= PROFILE IMAGE =================

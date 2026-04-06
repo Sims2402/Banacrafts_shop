@@ -3,22 +3,35 @@ import embroideredClutch from "@/assets/products/embroidered-clutch.jpg";
 import blockPrintDupatta from "@/assets/products/block-print-dupatta.jpg";
 import brassDiya from "@/assets/products/brass-diya.jpg";
 
+export type ProductDiscount = {
+  code: string;
+  type: "percentage" | "fixed";
+  value: number;
+};
 export interface Product {
   id: string;
   name: string;
   description: string;
-  price: number;
-  originalPrice?: number;
+
+  price: number; // ✅ keep
+  originalPrice?: number; // ✅ keep
+  discount?: ProductDiscount | null; // ✅ keep
+
+  finalPrice?: number; // ✅ ONLY ADD THIS
+
   image: string;
   images: string[];
+
   category: string;
   material: string;
   tags: string[];
   artisanId: string;
-  /** Units available (from API inventory). Omit on legacy cached cart items. */
-  quantity?: number;
+
+  quantity?: number; // (optional, already used in backend)
+
   inStock: boolean;
   isReturnable: boolean;
+
   rating: number;
   reviews: number;
   returnPolicy: string;

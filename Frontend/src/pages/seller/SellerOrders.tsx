@@ -26,8 +26,19 @@ import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
+import { normalizePaymentStatusForBadge } from "@/lib/orderPayment";
 
 const API = "http://localhost:5000/api";
+
+function formatPaymentMethodLabel(method: unknown): string {
+  if (!method) return "—";
+  const s = String(method).toLowerCase();
+
+  if (s.includes("cash") || s === "cod") return "Cash on Delivery";
+  if (s === "upi") return "UPI";
+
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 /* ── helpers ── */
 const transformOrders = (orders: any[]) => {
@@ -48,7 +59,14 @@ const transformOrders = (orders: any[]) => {
       : [],
     totalAmount: order.totalPrice,
     status: order.orderStatus?.toLowerCase() || "pending",
-    paymentStatus: order.paymentStatus?.toLowerCase() || "pending",
+    paymentStatus: normalizePaymentStatusForBadge(
+      order.paymentStatus,
+      order.orderStatus
+    ),
+    paymentMethod: order.paymentMethod ?? "",
+    deliveryAddress: order.deliveryAddress ?? "",
+    phone: order.phone ?? "",
+    deliveryMethod: order.deliveryMethod ?? "",
     createdAt: order.createdAt,
     customerRequest: order.cancelRequested
       ? {
@@ -159,12 +177,12 @@ const SellerOrders = () => {
   const handleRequestAction = async (order: any, action: "approve" | "reject") => {
     try {
       if (order.customerRequest?.type === "cancel") {
-        await axios.patch(`${API}/orders/${order.id}/cancel/action`,
+        await axios.put(`${API}/orders/${order.id}/cancel/action`,
           { action },
           { headers: authHeaders }
         );
       } else if (order.customerRequest?.type === "exchange") {
-        await axios.patch(`${API}/orders/${order.id}/return/action`,
+        await axios.put(`${API}/orders/${order.id}/return/action`,
           { action },
           { headers: authHeaders }
         );
@@ -473,16 +491,34 @@ const SellerOrders = () => {
                     <p className="text-sm text-muted-foreground">{selectedOrder.customerEmail}</p>
                   </div>
                   <div>
-                    <h4 className="font-medium mb-2">Delivery Details</h4>
-                    <Badge variant="outline" className="mb-2">
-                      {selectedOrder.deliveryMethod === "self_pickup" ? "Self Pickup" : "Seller Delivery"}
-                    </Badge>
-                    {selectedOrder.openBoxDelivery && (
-                      <Badge variant="outline" className="ml-2 bg-blue-50">Open Box Delivery</Badge>
-                    )}
-                    {selectedOrder.shippingAddress && (
-                      <p className="text-sm text-muted-foreground mt-1">{selectedOrder.shippingAddress}</p>
-                    )}
+                  <h4 className="font-medium mb-2">Delivery Details</h4>
+
+                        <Badge variant="outline" className="mb-2">
+                          {selectedOrder.deliveryMethod === "self_pickup"
+                            ? "Self Pickup"
+                            : "Seller Delivery"}
+                        </Badge>
+
+                        {/* ✅ ADDRESS */}
+                        {selectedOrder.deliveryAddress && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            📍 {selectedOrder.deliveryAddress}
+                          </p>
+                        )}
+
+                        {/* ✅ PHONE */}
+                        {selectedOrder.phone && (
+                          <p className="text-sm text-muted-foreground">
+                            📞 {selectedOrder.phone}
+                          </p>
+                        )}
+
+                        {/* ✅ PAYMENT METHOD */}
+                        {selectedOrder.paymentMethod && (
+                          <p className="text-sm text-muted-foreground">
+                            💳 {selectedOrder.paymentMethod}
+                          </p>
+                        )}
                   </div>
                 </div>
 

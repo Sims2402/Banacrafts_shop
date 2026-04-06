@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken.js";
 
 /* ================= REGISTER USER ================= */
@@ -47,30 +48,32 @@ export const registerUser = async (req, res) => {
 export const loginUser = async (req, res) => {
   try {
     // ✅ STEP 1: also extract `role` from the request body
-    let { email, password, role } = req.body;
+    const { email, password, role } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ message: "Please provide email and password" });
     }
 
-    email = email.trim().toLowerCase();
+    const emailStr = String(email).trim().toLowerCase();
 
-    console.log("📩 Email received:", email);
-    console.log("🔐 Password received:", password);
-
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: emailStr });
 
     if (!user) {
-      console.log("❌ User not found for:", email);
+      console.log("❌ User not found for:", emailStr);
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    console.log("✅ User found");
-    console.log("Stored hash:", user.password);
+    if (!user.password || typeof user.password !== "string") {
+      console.error("Login failed: user has invalid password hash", {
+        userId: String(user._id),
+        email: emailStr,
+        passwordType: typeof user.password,
+      });
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
 
-    const isMatch = await user.matchPassword(password);
-
-    console.log("Password match result:", isMatch);
+    const cleanInput = String(password).trim();
+    const isMatch = await bcrypt.compare(cleanInput, user.password);
 
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password" });
@@ -81,8 +84,6 @@ export const loginUser = async (req, res) => {
       console.log(`❌ Role mismatch: selected "${role}" but account is "${user.role}"`);
       return res.status(403).json({ message: "Incorrect role selected for this account." });
     }
-
-    console.log("🎉 LOGIN SUCCESS");
 
     res.json({
       user: {
@@ -95,7 +96,10 @@ export const loginUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("Login error:", {
+      message: error?.message,
+      stack: error?.stack,
+    });
     res.status(500).json({ message: error.message });
   }
 };

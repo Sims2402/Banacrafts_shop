@@ -7,7 +7,7 @@ const Footer = () => {
   return (
     <footer className="bg-heritage-brown text-heritage-cream">
       <div className="container py-12 md:py-16">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {/* Brand */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-3">
@@ -42,28 +42,6 @@ const Footer = () => {
                 { name: "Awareness", path: "/awareness" },
               ].map((link) => (
                 <li key={link.path}>
-                  <Link
-                    to={link.path}
-                    className="text-sm text-heritage-cream/80 hover:text-heritage-gold transition-colors"
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Customer Service */}
-          <div>
-            <h3 className="font-heading text-lg font-semibold mb-4">Customer Service</h3>
-            <ul className="space-y-3">
-              {[
-                { name: "Track Order", path: "/support/track-order" },
-                { name: "Returns & Refunds", path: "/support/returns-refunds" },
-                { name: "Shipping Info", path: "/support/shipping-info" },
-                { name: "FAQs", path: "/support/faqs" },
-              ].map((link, idx) => (
-                <li key={idx}>
                   <Link
                     to={link.path}
                     className="text-sm text-heritage-cream/80 hover:text-heritage-gold transition-colors"

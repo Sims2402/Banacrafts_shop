@@ -1,13 +1,11 @@
 import {
-  LineChart,
   Line,
+  LineChart,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Area,
-  AreaChart,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -18,6 +16,8 @@ interface RevenueChartProps {
 
 const RevenueChart = ({ title = "Revenue Trends", data }: RevenueChartProps) => {
   const hasPoints = Array.isArray(data) && data.length > 0;
+  const allZeroRevenue =
+    hasPoints && data.every((point) => Number(point.revenue || 0) === 0);
 
   return (
     <Card className="heritage-card">
@@ -32,49 +32,51 @@ const RevenueChart = ({ title = "Revenue Trends", data }: RevenueChartProps) => 
             </p>
           </div>
         ) : (
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data}>
-              <defs>
-                <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={false}
-                className="fill-muted-foreground"
-              />
-              <YAxis
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
-                className="fill-muted-foreground"
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                }}
-                formatter={(value: number) => [`₹${value.toLocaleString()}`, "Revenue"]}
-              />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                fill="url(#revenueGradient)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+          <div className="space-y-2">
+            {allZeroRevenue && (
+              <p className="text-sm text-muted-foreground">
+                No revenue data in the last 4 weeks
+              </p>
+            )}
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={false}
+                    className="fill-muted-foreground"
+                  />
+                  <YAxis
+                    domain={[0, "dataMax + 100"]}
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => `₹${Number(value).toLocaleString()}`}
+                    className="fill-muted-foreground"
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                    }}
+                    formatter={(value: number) => [`₹${value.toLocaleString()}`, "Revenue"]}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#8884d8"
+                    strokeWidth={2}
+                    connectNulls
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

@@ -34,6 +34,16 @@ const ProfileEdit = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  useEffect(() => {
+    if (!user) return;
+    setForm({
+      name: user.name || "",
+      phone: user.phone || "",
+      address: user.address || "",
+    });
+    setAvatar(user.avatar || null);
+  }, [user]);
+
   /* ── avatar pick ── */
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -53,13 +63,22 @@ const ProfileEdit = () => {
     if (!form.name.trim()) { showToast("Name cannot be empty.", "err"); return; }
     setSaving(true);
     try {
-      const updated = await fetchWithAuth("/user/profile", {
+      const updated = await fetchWithAuth("/users/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: form.name, phone: form.phone, address: form.address, avatar: avatarFile }),
       });
+      console.log(updated);
       // update auth context so navbar reflects changes immediately
-      if (setUser) setUser((prev: any) => ({ ...prev, name: updated.name, avatar: updated.avatar }));
+      if (setUser) {
+        setUser((prev: any) => ({
+          ...prev,
+          name: updated.name ?? prev?.name,
+          phone: updated.phone ?? prev?.phone,
+          address: updated.address ?? prev?.address,
+          avatar: updated.avatar ?? prev?.avatar,
+        }));
+      }
       showToast("Profile updated successfully!");
     } catch { showToast("Failed to save profile.", "err"); }
     finally { setSaving(false); }
@@ -72,10 +91,14 @@ const ProfileEdit = () => {
     if (passwords.newPass.length < 6) { showToast("Password must be at least 6 characters.", "err"); return; }
     setSavingPw(true);
     try {
-      await fetchWithAuth("/user/change-password", {
+      await fetchWithAuth("/users/change-password", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword: passwords.current, newPassword: passwords.newPass }),
+        body: JSON.stringify({
+          currentPassword: passwords.current,
+          newPassword: passwords.newPass,
+          confirmPassword: passwords.confirm,
+        }),
       });
       setPasswords({ current: "", newPass: "", confirm: "" });
       showToast("Password changed successfully!");

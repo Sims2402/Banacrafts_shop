@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
 
+const API = "http://localhost:5000/api";
+
 const VerifyOTP = () => {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -45,18 +47,35 @@ const VerifyOTP = () => {
     }
 
     setIsLoading(true);
-    
-    // Simulate OTP verification (accept any 6-digit code for demo)
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    toast({
-      title: "Verified!",
-      description: "OTP verified successfully.",
-    });
-    
-    // Navigate to reset password with email in state
-    navigate("/reset-password", { state: { email, verified: true } });
-    setIsLoading(false);
+    try {
+      const res = await fetch(`${API}/users/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || "Invalid OTP");
+      }
+
+      toast({
+        title: "Verified!",
+        description: "OTP verified successfully.",
+      });
+
+      navigate("/reset-password", {
+        state: { email, verified: true, resetToken: data.resetToken },
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "OTP verification failed.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResend = async () => {
@@ -65,13 +84,28 @@ const VerifyOTP = () => {
     setCanResend(false);
     setResendTimer(60);
     
-    // Simulate resending OTP
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    toast({
-      title: "OTP Resent!",
-      description: "A new verification code has been sent to your email.",
-    });
+    try {
+      const res = await fetch(`${API}/users/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || "Failed to resend code");
+      }
+
+      toast({
+        title: "OTP Resent!",
+        description: "A new verification code has been sent to your email.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to resend code.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (!email) return null;

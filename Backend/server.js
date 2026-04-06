@@ -17,6 +17,9 @@ import userRoutes from "./routes/user.routes.js";
 import discountRoutes from "./routes/discount.routes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 
+// ✅ SELLER ADDITION
+import dashboardRoutes from "./routes/dashboardRoutes.js";
+
 // CONFIG
 dotenv.config({
   path: path.resolve("./.env")
@@ -27,7 +30,9 @@ const app = express();
 // DB
 connectDB();
 
-// MIDDLEWARE
+// ================= MIDDLEWARE =================
+
+// ✅ Keep admin CORS (more controlled)
 app.use(cors({
   origin: "http://localhost:8080",
   credentials: true
@@ -36,33 +41,49 @@ app.use(cors({
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ROUTES
+// ✅ SELLER FEATURE (IMPORTANT - cache fix)
+app.use("/api", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  next();
+});
+
+// ================= ROUTES =================
+
+// AUTH + USER
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 
+// CORE
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/discounts", discountRoutes);
 app.use("/api/reviews", reviewRoutes);
 
+// EXTRA
 app.use("/api/artisans", artisanRoutes);
 app.use("/api/awareness", awarenessRoutes);
 
+// ADMIN
 app.use("/api/admin", adminRoutes);
+
+// PAYMENT
 app.use("/api/payments", paymentRoutes);
 
-// HEALTH
+// ✅ SELLER DASHBOARD
+app.use("/api/dashboard", dashboardRoutes);
+
+// ================= HEALTH =================
 app.get("/", (req, res) => {
   res.json({ message: "Server running 🚀" });
 });
 
-// ERROR HANDLER
+// ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: err.message });
 });
 
-// SERVER
+// ================= SERVER =================
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

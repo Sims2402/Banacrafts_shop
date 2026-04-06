@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
+const API = "http://localhost:5000/api";
+
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -20,13 +22,14 @@ const ResetPassword = () => {
   
   const email = location.state?.email;
   const verified = location.state?.verified;
+  const resetToken = location.state?.resetToken;
 
   useEffect(() => {
     // Redirect if not verified
-    if (!email || !verified) {
+    if (!email || !verified || !resetToken) {
       navigate("/forgot-password");
     }
-  }, [email, verified, navigate]);
+  }, [email, verified, resetToken, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,20 +62,39 @@ const ResetPassword = () => {
     }
 
     setIsLoading(true);
-    
-    // Simulate password reset
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    setIsSuccess(true);
-    toast({
-      title: "Password Reset!",
-      description: "Your password has been successfully reset.",
-    });
-    
-    setIsLoading(false);
+    try {
+      const res = await fetch(`${API}/users/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          resetToken,
+          newPassword: password,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to reset password");
+      }
+
+      setIsSuccess(true);
+      toast({
+        title: "Password Reset!",
+        description: "Your password has been successfully reset.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to reset password.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  if (!email || !verified) return null;
+  if (!email || !verified || !resetToken) return null;
 
   if (isSuccess) {
     return (

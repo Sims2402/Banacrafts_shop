@@ -297,7 +297,7 @@ const SellerProducts = () => {
                         <SelectItem value="Textiles">Textiles</SelectItem>
                         <SelectItem value="Accessories">Accessories</SelectItem>
                         <SelectItem value="Home Decor">Home Decor</SelectItem>
-                        <SelectItem value="Jewelry">Jewelry</SelectItem>
+                        <SelectItem value="Jewelry">Jewellery</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -423,15 +423,38 @@ const SellerProducts = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="font-medium">
-                          ₹{product.finalPrice !== undefined ? product.finalPrice : product.price}
-                        </span>
-                        {product.originalPrice > 0 && (
-                          <span className="text-sm text-muted-foreground line-through ml-2">
-                            ₹{product.originalPrice}
-                          </span>
-                        )}
-                      </TableCell>
+  <div className="flex flex-wrap items-center gap-x-2">
+    {(() => {
+      const list = Number(product.price);
+      const final =
+        product.finalPrice !== undefined
+          ? Number(product.finalPrice)
+          : list;
+
+      const hasDiscount = final < list;
+
+      return (
+        <>
+          <span className="font-medium">₹{final}</span>
+
+          {hasDiscount && (
+            <span className="text-sm text-muted-foreground line-through">
+              ₹{list}
+            </span>
+          )}
+
+          {!hasDiscount &&
+            product.originalPrice > 0 &&
+            product.originalPrice > list && (
+              <span className="text-sm text-muted-foreground line-through">
+                ₹{product.originalPrice}
+              </span>
+            )}
+        </>
+      );
+    })()}
+  </div>
+</TableCell>
                       <TableCell>
                         <span className="text-sm">
                           {product.quantity > 0 ? (
@@ -494,7 +517,17 @@ const SellerProducts = () => {
               <h2 className="text-lg font-semibold">{viewProduct.name}</h2>
               <p className="text-sm text-muted-foreground">{viewProduct.description}</p>
               <div className="flex justify-between">
-                <span>₹{viewProduct.price}</span>
+              <div className="flex gap-2 items-center">
+                <span className="font-medium">
+                  ₹{viewProduct.finalPrice ?? viewProduct.price}
+                </span>
+
+                {viewProduct.finalPrice < viewProduct.price && (
+                  <span className="text-sm text-muted-foreground line-through">
+                    ₹{viewProduct.price}
+                  </span>
+                )}
+              </div>
                 <span className={viewProduct.quantity > 0 ? "text-green-600" : "text-muted-foreground"}>
                   {viewProduct.quantity > 0
                     ? `${viewProduct.quantity} in stock`

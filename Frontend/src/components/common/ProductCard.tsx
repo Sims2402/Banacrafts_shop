@@ -8,29 +8,32 @@ import { cn } from "@/lib/utils";
 import { normalizeProductTags } from "@/lib/normalizeProductTags";
 const getProductId = (product: any) => product._id || product.id;
 
-function cardImageSrc(product: Product & { images?: { url: string }[] }) {
+function cardImageSrc(product: any) {
   if (product.image) return product.image;
+
   const first = product.images?.[0];
+
+  if (!first) return "/placeholder.png";
+
   if (typeof first === "string") return first;
-  return first?.url || "/placeholder.png";
+
+  return first.url || "/placeholder.png";
 }
 
 interface ProductCardProps {
-  product: Product & {
-    images?: { url: string }[];
-  };
+  product: Product;
   className?: string;
 }
 
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, className }) => {
   const { addToCart, addToWishlist, removeFromWishlist, isInWishlist } = useCart();
-  const inWishlist = isInWishlist(product.id);
+  const inWishlist = isInWishlist(getProductId(product));
 
   const handleWishlistClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (inWishlist) {
-      removeFromWishlist(product.id);
+      removeFromWishlist(getProductId(product));
     } else {
       addToWishlist(product);
     }
@@ -132,15 +135,38 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, className }) => {
 
           {/* Price */}
           <div className="flex items-center gap-2 mt-2">
+  {(() => {
+    const list = Number(product.price);
+    const final =
+      product.finalPrice !== undefined
+        ? Number(product.finalPrice)
+        : list;
+
+    const hasDiscount = final < list;
+
+    return (
+      <>
             <span className="font-heading text-lg font-bold text-primary">
-              ₹{product.price.toLocaleString()}
+              ₹{final.toLocaleString()}
             </span>
-            {product.originalPrice && (
+
+            {hasDiscount && (
               <span className="text-sm text-muted-foreground line-through">
-                ₹{product.originalPrice.toLocaleString()}
+                ₹{list.toLocaleString()}
               </span>
             )}
-          </div>
+
+            {!hasDiscount &&
+              product.originalPrice &&
+              product.originalPrice > list && (
+                <span className="text-sm text-muted-foreground line-through">
+                  ₹{product.originalPrice.toLocaleString()}
+                </span>
+              )}
+          </>
+        );
+      })()}
+    </div>
 
           <p className="text-xs text-muted-foreground mt-1">
             {!canAdd
@@ -163,5 +189,4 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, className }) => {
     </Link>
   );
 };
-
 export default ProductCard;

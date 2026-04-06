@@ -23,6 +23,12 @@ const COLORS = [
 
 const TopProductsChart = ({ title = "Top Products", data }: TopProductsChartProps) => {
   const chartData = data.filter((d) => d.value > 0);
+  const sortedData = [...chartData].sort((a, b) => b.value - a.value);
+  const topProducts = sortedData.slice(0, 5);
+  const others = sortedData.slice(5).reduce((sum, item) => sum + item.value, 0);
+  const pieData = others > 0
+    ? [...topProducts, { name: "Others", value: others }]
+    : topProducts;
 
   return (
     <Card className="heritage-card">
@@ -30,7 +36,7 @@ const TopProductsChart = ({ title = "Top Products", data }: TopProductsChartProp
         <CardTitle className="text-lg font-display">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        {chartData.length === 0 ? (
+        {pieData.length === 0 ? (
           <div className="h-[300px] flex flex-col items-center justify-center text-center px-4">
             <p className="text-sm text-muted-foreground">
               No sales data yet. When customers buy your products, share of sales
@@ -42,21 +48,16 @@ const TopProductsChart = ({ title = "Top Products", data }: TopProductsChartProp
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={chartData}
+                  data={pieData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
                   outerRadius={100}
                   paddingAngle={4}
                   dataKey="value"
-                  label={({ name, percent }) => {
-                    const short =
-                      name.length > 12 ? `${name.slice(0, 12)}…` : name;
-                    return `${short} ${(percent * 100).toFixed(0)}%`;
-                  }}
-                  labelLine={false}
+                  nameKey="name"
                 >
-                  {chartData.map((entry, index) => (
+                  {pieData.map((entry, index) => (
                     <Cell
                       key={`cell-${entry.name}-${index}`}
                       fill={COLORS[index % COLORS.length]}
@@ -80,9 +81,9 @@ const TopProductsChart = ({ title = "Top Products", data }: TopProductsChartProp
             </ResponsiveContainer>
           </div>
         )}
-        {chartData.length > 0 && (
+        {pieData.length > 0 && (
           <div className="mt-4 grid grid-cols-2 gap-2">
-            {chartData.slice(0, 4).map((item, index) => (
+            {pieData.map((item, index) => (
               <div
                 key={`${item.name}-${index}`}
                 className="flex items-center gap-2 text-sm"

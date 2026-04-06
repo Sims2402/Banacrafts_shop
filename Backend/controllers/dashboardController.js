@@ -1,8 +1,8 @@
-const Order = require("../models/Order");
-const Product = require("../models/Product");
+import Order from "../models/Order.js";
+import Product from "../models/Product.js";
 
 // Dashboard Stats
-exports.getDashboardStats = async (req, res) => {
+export const getDashboardStats = async (req, res) => {
 
   try {
 
@@ -57,7 +57,7 @@ exports.getDashboardStats = async (req, res) => {
 };
 
 // Weekly revenue (last 4 weeks, Week 1 = oldest … Week 4 = most recent)
-exports.getRevenueStats = async (req, res) => {
+export const getRevenueStats = async (req, res) => {
 
   try {
 
@@ -98,7 +98,7 @@ exports.getRevenueStats = async (req, res) => {
 };
 
 // Top Selling Products
-exports.getTopProducts = async (req, res) => {
+export const getTopProducts = async (req, res) => {
 
   try {
 

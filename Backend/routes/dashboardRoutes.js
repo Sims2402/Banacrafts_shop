@@ -1,11 +1,11 @@
-const express = require("express");
+import express from "express";
 const router = express.Router();
 
-const {
+import {
   getDashboardStats,
   getRevenueStats,
   getTopProducts
-} = require("../controllers/dashboardController");
+} from "../controllers/dashboardController.js";
 
 router.get("/seller/dashboard/stats/:sellerId", getDashboardStats);
 
@@ -13,4 +13,4 @@ router.get("/seller/dashboard/revenue/:sellerId", getRevenueStats);
 
 router.get("/seller/dashboard/top-products/:sellerId", getTopProducts);
 
-module.exports = router;
+export default router;

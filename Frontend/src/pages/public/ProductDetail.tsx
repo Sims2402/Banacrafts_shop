@@ -13,6 +13,8 @@ import { useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { useState } from "react";
 
+
+const getProductId = (product: any) => product._id || product.id;
 const ProductDetail = () => {
   const { id } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
@@ -73,7 +75,7 @@ const ProductDetail = () => {
   //   .slice(0, 4);
     const relatedProducts: any[] = [];
 
-  const inWishlist = isInWishlist(product.id);
+  const inWishlist = isInWishlist(getProductId(product));
 
   const hasNumericStock =
     product.quantity != null && Number.isFinite(product.quantity);
@@ -165,16 +167,47 @@ const ProductDetail = () => {
               </div>
 
               {/* Price */}
-              <div className="flex items-baseline gap-3">
-                <span className="font-heading text-4xl font-bold text-primary">
-                  ₹{product.price.toLocaleString()}
-                </span>
-                {product.originalPrice && (
-                  <span className="text-xl text-muted-foreground line-through">
-                    ₹{product.originalPrice.toLocaleString()}
-                  </span>
-                )}
+              <div className="flex items-baseline gap-3 flex-wrap">
+                {(() => {
+                  const list = Number(product.price);
+                  const final =
+                    product.finalPrice !== undefined
+                      ? Number(product.finalPrice)
+                      : list;
+
+                  const hasDiscount = final < list;
+
+                  return (
+                    <>
+                      <span className="font-heading text-4xl font-bold text-primary">
+                        ₹{final.toLocaleString()}
+                      </span>
+
+                      {hasDiscount && (
+                        <span className="text-xl text-muted-foreground line-through">
+                          ₹{list.toLocaleString()}
+                        </span>
+                      )}
+
+                      {!hasDiscount &&
+                        product.originalPrice &&
+                        product.originalPrice > list && (
+                          <span className="text-xl text-muted-foreground line-through">
+                            ₹{product.originalPrice.toLocaleString()}
+                          </span>
+                        )}
+                    </>
+                  );
+                })()}
               </div>
+
+              <p className="text-sm text-muted-foreground">
+                {!canPurchase
+                  ? "Out of stock"
+                  : hasNumericStock
+                    ? `${stockQty} available`
+                    : "In stock"}
+              </p>
 
               {/* Tags */}
               <div className="flex flex-wrap gap-2">
@@ -265,7 +298,7 @@ const ProductDetail = () => {
                   variant="outline"
                   size="lg"
                   className="gap-2"
-                  onClick={() => inWishlist ? removeFromWishlist(product.id) : addToWishlist(product)}
+                  onClick={() => inWishlist ? removeFromWishlist(getProductId(product)) : addToWishlist(product)}
                 >
                   <Heart className={inWishlist ? "fill-primary text-primary" : ""} />
                 </Button>
